@@ -1,8 +1,10 @@
 # --- 取得キャッシュ・変換結果 (Cisco の著作物を含むためコミットしない) ---
 /cache/
 /out/
+/manuals/
 
 # --- Go ---
+/manualbook
 *.exe
 *.exe~
 *.test
@@ -15,6 +17,7 @@ vendor/
 __pycache__/
 *.py[cod]
 *.egg-info/
+/build/
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/

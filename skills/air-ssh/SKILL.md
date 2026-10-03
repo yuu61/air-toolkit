@@ -12,8 +12,8 @@ description: air-ssh CLI で Cisco AireOS WLC / Mobility Express の状態確認
 
 ## 実行環境と対象を決める
 
-インストール済みなら `air-ssh`、aironet のリポジトリで開発環境を使うなら
-リポジトリ直下から `uv run air-ssh` を実行する。まず `--help` で利用可能な引数を確認する。
+PATH の `air-ssh` を実行する。見つからなければ aironet の README にある
+クローンと `uv tool install -e <clone>` の導入手順を案内する。まず `--help` で利用可能な引数を確認する。
 以降の例の `wlc` と WLAN ID は例示であり、実際の対象に置き換える。
 
 ```console
@@ -51,7 +51,8 @@ air-ssh --device wlc "show ap summary" "show client summary"
 ```
 
 状態確認の依頼から設定変更・再起動・保存へ進まない。
-出力は逐次表示される。共有する抜粋に秘密値が含まれる場合は伏せる。
+入力コマンドと出力は逐次表示され、自動では伏せられない。
+認証情報を含むコマンドや共有する抜粋の秘密値は伏せる。
 
 ## 設定変更と WLAN サイクル
 

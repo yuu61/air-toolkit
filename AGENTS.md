@@ -18,18 +18,21 @@
 | `src/air_ssh/cli/` | 引数解析、エラーの最終表示と終了コード。air-ssh の入口 | Python |
 | `tests/` | air-ssh の規則・認証情報解決・疑似セッションによる操作の検証 | Python |
 | `skills/` | air-ssh 操作用・マニュアル参照用の skill | Markdown |
+| `skills/*/agents/openai.yaml` | Codex 向けの skill 表示名と短い説明 | YAML |
+| `.codex-plugin/` / `.claude-plugin/` | エージェント向けのプラグイン manifest | JSON |
+| `docs/` | SSH 操作・マニュアル変換・開発の詳細ガイド | Markdown |
+| `Makefile` | 静的検査・Python の版別テスト・Go テストとビルドの入口 | Make |
 
-```console
-$ go build -ldflags="-s -w" -o manualbook.exe ./cmd/manualbook   # -s -w は Defender の誤検知回避
-$ ./manualbook.exe build                                          # 変換結果を作り直して確かめる
-$ go test ./...                                                   # 規則 (manifest・索引・目次・変換) の検証
-$ go vet ./...
-$ golangci-lint run ./...                                         # ix-toolkit と同じ設定 (.golangci.yml)。0 issues を保つ
-$ uv sync --extra dev
-$ uv run python -m unittest
-$ uv run ruff check src/ tests/
-$ uv run ruff format --check src/ tests/
-```
+開発環境と検証手順は [docs/develop.md](docs/develop.md) にまとめる。`make check` で Ruff、
+Go vet / golangci-lint、Python 3.10 / 3.14 の unittest、Go テスト、ビルドを実行する。
+Go のビルドには Defender の誤検知を避ける `-ldflags="-s -w"` を付け、Windows では
+`manualbook.exe`、他の OS では `manualbook` を出す。出力名を Windows に固定しない。
+検証のために実機へ接続したり、Cisco の資料を取得したりしない。変換器を変えた場合は
+取得済みキャッシュから関係する冊子を作り直して確認する。静的検査は 0 issues を保つ。
+
+配布はリポジトリ全体のクローンと `uv tool install -e <clone>` を組み合わせ、skill は
+PATH の `air-ssh` を呼ぶ。skill ディレクトリだけの導入で CLI も入るとは案内しない。
+共通のクローン先は `~/.agents/skills/aironet`。インベントリと資料は `~/.aironet/` に置く。
 
 ## 層の規則
 
@@ -43,6 +46,16 @@ Python の `src/air_ssh/` も同じ依存方向にする。`domain` はファイ
 渡された値だけを扱う。`cli` は `application` の公開 API だけを呼ぶ。
 接続情報は `--inventory` → `$AIRONET_INVENTORY` → `~/.aironet/devices.json` から読み、
 機器は `--device` / `$AIRONET_DEVICE` で明示する。
+
+## skill を書き換えるときの決まり
+
+Claude Code と Codex 等、SKILL.md を読むエージェントで同じように使える本文を保つ。
+`name` / `description` は必須。対象はユーザーの依頼から読み取り、`$ARGUMENTS` や
+`/air-ssh` / `$air-ssh` のような特定エージェントの記法を本文に書かない。
+他の skill は名前で参照し、ファイルの読み方は特定のツール名に限定しない。
+表示名は `agents/openai.yaml`、導入とエージェント別の呼び出し方は README に置く。
+承認済みの対象・変更内容には再確認を足さず、状態確認の依頼を変更や保存へ広げない。
+索引・資料の場所と読み方を変えた場合は `air-manual` も合わせて直す。
 
 ## cisco.com の取り方
 

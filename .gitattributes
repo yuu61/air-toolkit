@@ -1,0 +1,2 @@
+# Windows の core.autocrlf=true でも skill・fixture・索引を LF に揃える。
+* text=auto eol=lf

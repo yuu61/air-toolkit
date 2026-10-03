@@ -1,0 +1,3 @@
+interface:
+  display_name: "Aironet SSH"
+  short_description: "Cisco WLC / Mobility Express / AP の状態確認・設定変更・保存"

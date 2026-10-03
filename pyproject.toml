@@ -1,14 +1,21 @@
 [project]
 name = "aironet"
 version = "0.1.0"
-description = "Cisco AireOS WLC / Mobility Express SSH helper"
+description = "Cisco AireOS WLC / Mobility Express / Aironet AP SSH helper"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+authors = [{ name = "yuu61" }]
 dependencies = ["netmiko>=4.7"]
 
 [project.optional-dependencies]
-dev = ["ruff"]
+dev = ["ruff>=0.16.7,<0.17"]
+
+[project.urls]
+Homepage = "https://github.com/yuu61/aironet"
+Repository = "https://github.com/yuu61/aironet"
+
+# Skills call the installed command from PATH; clone the whole repository.
 
 [project.scripts]
 air-ssh = "air_ssh.cli:main"
@@ -22,3 +29,9 @@ packages = ["src/air_ssh"]
 
 [tool.ruff]
 line-length = 100
+target-version = "py310"
+required-version = ">=0.16.7,<0.17"
+
+[tool.ruff.lint]
+# Keep the existing default checks explicit when Ruff is updated.
+select = ["E4", "E7", "E9", "F"]

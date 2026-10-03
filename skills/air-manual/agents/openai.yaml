@@ -1,0 +1,3 @@
+interface:
+  display_name: "Aironet Manual"
+  short_description: "Cisco WLC / Mobility Express / AP のマニュアルで構文・手順・制約を確認"
