@@ -37,7 +37,7 @@ linters:
     - wsl                  # deprecated (replaced by wsl_v5)
     - wsl_v5               # 空行のスタイル制限は過剰
     - gomodguard           # deprecated (replaced by gomodguard_v2)
-    - gomodguard_v2        # モジュールの許可・禁止リストは持たない (depguard と同じ理由)
+    - gomodguard_v2        # 版制約の検査は使わず、依存方向は depguard で検査する
     - nlreturn
     - tagalign
     - tagliatelle
@@ -54,12 +54,89 @@ linters:
     - embeddedstructfieldcheck
     - exhaustive
     - mnd                  # 画像処理の定数などで引っかかりやすいため無効化
-    - depguard
     - gomoddirectives
 
   # default: all を使うことで、これら以外の有益なリンター (intrange, prealloc, perfsprint, modernize, fieldalignment など) はすべて有効になります。
 
   settings:
+    depguard:
+      # Each layer allows only itself, its declared dependencies, and stdlib.
+      # Exact roots ($ suffix) and slash prefixes also cover future subpackages
+      # without accidentally allowing similarly named sibling packages.
+      # depguard's glob syntax needs separate patterns for direct and nested files.
+      rules:
+        domain:
+          list-mode: strict
+          files:
+            - "**/internal/domain/*.go"
+            - "**/internal/domain/**/*.go"
+          allow:
+            - $gostd
+            - github.com/yuu61/aironet/internal/domain$
+            - github.com/yuu61/aironet/internal/domain/
+        infrastructure:
+          list-mode: strict
+          files:
+            - "**/internal/infrastructure/*.go"
+            - "**/internal/infrastructure/**/*.go"
+          allow:
+            - $gostd
+            - github.com/yuu61/aironet/internal/infrastructure$
+            - github.com/yuu61/aironet/internal/infrastructure/
+            - github.com/yuu61/aironet/internal/domain$
+            - github.com/yuu61/aironet/internal/domain/
+            - golang.org/x/net/html$
+            - golang.org/x/net/html/
+        application:
+          list-mode: strict
+          files:
+            - "**/internal/application/*.go"
+            - "**/internal/application/**/*.go"
+          allow:
+            - $gostd
+            - github.com/yuu61/aironet/internal/application$
+            - github.com/yuu61/aironet/internal/application/
+            - github.com/yuu61/aironet/internal/infrastructure$
+            - github.com/yuu61/aironet/internal/infrastructure/
+            - github.com/yuu61/aironet/internal/domain$
+            - github.com/yuu61/aironet/internal/domain/
+        cli:
+          list-mode: strict
+          files:
+            - "**/internal/cli/*.go"
+            - "**/internal/cli/**/*.go"
+          allow:
+            - $gostd
+            - github.com/yuu61/aironet/internal/cli$
+            - github.com/yuu61/aironet/internal/cli/
+            - github.com/yuu61/aironet/internal/application$
+            - github.com/yuu61/aironet/internal/application/
+        entrypoint:
+          list-mode: strict
+          files:
+            - "**/cmd/manualbook/*.go"
+            - "**/cmd/manualbook/**/*.go"
+          allow:
+            - $gostd
+            - github.com/yuu61/aironet/internal/cli$
+            - github.com/yuu61/aironet/internal/cli/
+        unclassified:
+          # New directories cannot bypass the layer rules through a helper package.
+          list-mode: strict
+          files:
+            - $all
+            - "!**/internal/domain/*.go"
+            - "!**/internal/domain/**/*.go"
+            - "!**/internal/infrastructure/*.go"
+            - "!**/internal/infrastructure/**/*.go"
+            - "!**/internal/application/*.go"
+            - "!**/internal/application/**/*.go"
+            - "!**/internal/cli/*.go"
+            - "!**/internal/cli/**/*.go"
+            - "!**/cmd/manualbook/*.go"
+            - "!**/cmd/manualbook/**/*.go"
+          allow:
+            - $gostd
     gocritic:
       enabled-tags:
         - diagnostic

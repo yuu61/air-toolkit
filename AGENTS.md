@@ -23,7 +23,7 @@
 | `docs/` | SSH 操作・マニュアル変換・開発の詳細ガイド | Markdown |
 | `Makefile` | 静的検査・Python の版別テスト・Go テストとビルドの入口 | Make |
 
-開発環境と検証手順は [docs/develop.md](docs/develop.md) にまとめる。`make check` で Ruff、
+開発環境と検証手順は [docs/develop.md](docs/develop.md) にまとめる。`make check` で Ruff / Import Linter、
 Go vet / golangci-lint、Python 3.10 / 3.14 の unittest、Go テスト、ビルドを実行する。
 Go のビルドには Defender の誤検知を避ける `-ldflags="-s -w"` を付け、Windows では
 `manualbook.exe`、他の OS では `manualbook` を出す。出力名を Windows に固定しない。
@@ -46,6 +46,11 @@ Python の `src/air_ssh/` も同じ依存方向にする。`domain` はファイ
 渡された値だけを扱う。`cli` は `application` の公開 API だけを呼ぶ。
 接続情報は `--inventory` → `$AIRONET_INVENTORY` → `~/.aironet/devices.json` から読み、
 機器は `--device` / `$AIRONET_DEVICE` で明示する。
+
+依存方向は Python の `pyproject.toml` (Import Linter) と Go の `.golangci.yml` (depguard) で
+検査する。CLI から `domain` / `infrastructure` への直接 import と逆方向の依存を禁止し、
+起動点は CLI だけを import する。Python の型検査用 import と Go のテストにも同じ層の規則を
+適用する。新しい層・ディレクトリや Go の外部依存を追加するときは検査設定も更新する。
 
 ## skill を書き換えるときの決まり
 

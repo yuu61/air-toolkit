@@ -1,23 +1,35 @@
+# Copyright (c) 2026 yuu61
+
+"""Verify inventory decoding and SSH exchanges using in-memory channels."""
+
+from __future__ import annotations
+
 import io
 import tempfile
 import unittest
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 from air_ssh.domain import OperationError, Target, UsageError
 from air_ssh.infrastructure.inventory import inventory_path, read_inventory
 from air_ssh.infrastructure.session import ApSession, NetmikoSession, open_session
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 
 class InventoryFileTests(unittest.TestCase):
-    def test_path_precedence_and_default(self):
+    """Exercise inventory path resolution and safe decoding failures."""
+
+    def test_path_precedence_and_default(self) -> None:
         self.assertEqual(
             inventory_path("flag.json", {"AIRONET_INVENTORY": "env.json"}), Path("flag.json")
         )
         self.assertEqual(inventory_path(None, {"AIRONET_INVENTORY": "env.json"}), Path("env.json"))
         self.assertEqual(inventory_path(None, {}), Path.home() / ".aironet" / "devices.json")
 
-    def test_missing_default_is_empty_but_explicit_missing_is_error(self):
+    def test_missing_default_is_empty_but_explicit_missing_is_error(self) -> None:
         with (
             tempfile.TemporaryDirectory() as directory,
             patch("pathlib.Path.home", return_value=Path(directory)),
@@ -30,7 +42,7 @@ class InventoryFileTests(unittest.TestCase):
                 with self.assertRaises(UsageError):
                     read_inventory(override, env)
 
-    def test_bom_supported_and_bad_input_redacted(self):
+    def test_bom_supported_and_bad_input_redacted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "inventory.json"
             path.write_text('{"lab": {"host": "192.0.2.1"}}', encoding="utf-8-sig")
@@ -43,20 +55,25 @@ class InventoryFileTests(unittest.TestCase):
 
 
 class Channel:
-    def __init__(self, chunks):
+    """Supply scripted channel reads and record all outgoing text."""
+
+    def __init__(self, chunks: Iterable[str]) -> None:
+        """Prepare the scripted reads and empty outgoing channel log."""
         self.chunks = iter(chunks)
         self.writes = []
 
-    def write_channel(self, text):
+    def write_channel(self, text: str) -> None:
         self.writes.append(text)
 
-    def read_channel(self):
+    def read_channel(self) -> str:
         return next(self.chunks, "")
 
 
 class SessionTests(unittest.TestCase):
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_split_confirmation_and_pagination(self, sleep):
+    """Exercise the controller prompt and streaming protocol."""
+
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_split_confirmation_and_pagination(self) -> None:
         channel = Channel(
             [
                 "Proceed (y/",
@@ -75,8 +92,8 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(channel.writes, ["show run-config\n", "y\n", "\n"])
         self.assertIn("Proceed (y/n)", out.getvalue())
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_prompt_before_echo_does_not_end_output(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_prompt_before_echo_does_not_end_output(self) -> None:
         channel = Channel(
             ["(Cisco Controller) >", "", "show sysinfo\nresult\n", "(Cisco Controller) >", "", ""]
         )
@@ -84,8 +101,8 @@ class SessionTests(unittest.TestCase):
         self.assertTrue(NetmikoSession(channel, out, io.StringIO()).run("show sysinfo"))
         self.assertIn("result", out.getvalue())
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_inactivity_resets_when_data_arrives(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_inactivity_resets_when_data_arrives(self) -> None:
         channel = Channel(["data\n", "", "more\n", "", "(Cisco Controller) >", "", ""])
         with patch(
             "air_ssh.infrastructure.session.time.monotonic",
@@ -95,8 +112,8 @@ class SessionTests(unittest.TestCase):
                 NetmikoSession(channel, io.StringIO(), io.StringIO()).run("show run-config")
             )
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_silent_channel_times_out(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_silent_channel_times_out(self) -> None:
         err = io.StringIO()
         channel = Channel([])
         # 0/121: the command's inactivity; 121/132: the recovery's own inactivity.
@@ -106,8 +123,8 @@ class SessionTests(unittest.TestCase):
         self.assertIn("no output for 120s", err.getvalue())
         self.assertIn("prompt not recovered", err.getvalue())
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_timeout_recovers_prompt_with_ctrl_z(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_timeout_recovers_prompt_with_ctrl_z(self) -> None:
         # An unrecognized question times out; Ctrl-Z brings the root prompt back, so a
         # later status read (WLAN restoration) still works while the command itself failed.
         channel = Channel(
@@ -133,8 +150,8 @@ class SessionTests(unittest.TestCase):
         self.assertFalse(session.wlan_enabled("1"))
         self.assertEqual(channel.writes, ["config odd\n", "\x1a", "show wlan 1\n"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_timeout_at_unrecognized_more_pause_quits_with_q(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_timeout_at_unrecognized_more_pause_quits_with_q(self) -> None:
         # Documented: debug output can be appended to the MORE line; q exits MORE.
         channel = Channel(
             [
@@ -151,16 +168,19 @@ class SessionTests(unittest.TestCase):
         ):
             self.assertFalse(session.run("show run-config"))
         self.assertEqual(channel.writes, ["show run-config\n", "q"])
-        self.assertTrue(session._ready)
+        # Recovery must allow a subsequent command through the public API.
+        channel.chunks = iter(["show sysinfo\nresult\n(Cisco Controller) >", "", ""])
+        self.assertTrue(session.run("show sysinfo"))
 
     @patch("netmiko.ConnectHandler")
-    def test_connection_uses_inventory_values(self, connect):
+    def test_connection_uses_inventory_values(self, connect: Mock) -> None:
         connect.return_value.read_channel.side_effect = ["(Cisco Controller) >", "", ""]
         session = open_session(
             Target("lab", "192.0.2.1", "operator", "test-secret", 2222),
             io.StringIO(),
             io.StringIO(),
         )
+        self.assertIsInstance(session, NetmikoSession)
         connect.assert_called_once_with(
             device_type="cisco_wlc_ssh",
             host="192.0.2.1",
@@ -173,8 +193,8 @@ class SessionTests(unittest.TestCase):
         connect.return_value.disconnect.assert_called_once()
         connect.return_value.write_channel.assert_called_once_with("config paging enable\n")
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_controller_errors_are_failures_even_after_long_output(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_controller_errors_are_failures_even_after_long_output(self) -> None:
         for error in (
             "Request failed for wlan 10 - Static WEP key size does not match 802.1X WEP key size",
             "Incorrect usage. Use the '?' or <TAB> key to list commands.",
@@ -190,8 +210,8 @@ class SessionTests(unittest.TestCase):
                         "config wlan enable 10"
                     )
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_normal_output_and_command_echo_do_not_trigger_confirmation(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_normal_output_and_command_echo_do_not_trigger_confirmation(self) -> None:
         channel = Channel(
             [
                 "(Cisco Controller) >config wlan create 1 confirm\n",
@@ -210,8 +230,8 @@ class SessionTests(unittest.TestCase):
         )
         self.assertEqual(channel.writes, ["config wlan create 1 confirm\n"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_confirmation_like_partial_line_is_not_answered(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_confirmation_like_partial_line_is_not_answered(self) -> None:
         channel = Channel(
             [
                 "Would you like to continue (y/n)",
@@ -224,8 +244,8 @@ class SessionTests(unittest.TestCase):
         self.assertTrue(NetmikoSession(channel, io.StringIO(), io.StringIO()).run("show help"))
         self.assertEqual(channel.writes, ["show help\n"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_more_pages_use_space_once_per_prompt(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_more_pages_use_space_once_per_prompt(self) -> None:
         channel = Channel(
             [
                 "page 1\n--Mo",
@@ -245,8 +265,8 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(channel.writes, ["show sysinfo\n", " ", " "])
         self.assertIn("page 3", out.getvalue())
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_save_waits_for_confirmation_success_and_prompt(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_save_waits_for_confirmation_success_and_prompt(self) -> None:
         channel = Channel(
             [
                 "save config\nAre you sure you want to sa",
@@ -263,8 +283,8 @@ class SessionTests(unittest.TestCase):
         NetmikoSession(channel, io.StringIO(), io.StringIO()).save()
         self.assertEqual(channel.writes, ["save config\n", "y\n"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_save_without_success_marker_fails(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_save_without_success_marker_fails(self) -> None:
         for response in ("", "Error: saving failed\n"):
             with self.subTest(response=response), self.assertRaises(OperationError):
                 NetmikoSession(
@@ -273,8 +293,8 @@ class SessionTests(unittest.TestCase):
                     io.StringIO(),
                 ).save()
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_save_without_response_does_not_send_yes(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_save_without_response_does_not_send_yes(self) -> None:
         channel = Channel([])
         with (
             patch("air_ssh.infrastructure.session.time.monotonic", side_effect=[0, 121, 121, 132]),
@@ -283,8 +303,8 @@ class SessionTests(unittest.TestCase):
             NetmikoSession(channel, io.StringIO(), io.StringIO()).save()
         self.assertEqual(channel.writes, ["save config\n", "\x1a"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_save_success_without_final_prompt_is_not_complete(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_save_success_without_final_prompt_is_not_complete(self) -> None:
         channel = Channel(["Configuration Saved!\n", ""])
         with (
             patch(
@@ -294,8 +314,8 @@ class SessionTests(unittest.TestCase):
         ):
             NetmikoSession(channel, io.StringIO(), io.StringIO()).save()
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_save_does_not_confirm_an_unrelated_question(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_save_does_not_confirm_an_unrelated_question(self) -> None:
         channel = Channel(["Proceed with reset? (y/n)", ""])
         with (
             patch(
@@ -306,14 +326,14 @@ class SessionTests(unittest.TestCase):
             NetmikoSession(channel, io.StringIO(), io.StringIO()).save()
         self.assertEqual(channel.writes, ["save config\n", "\x1a"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_bare_echo_of_question_does_not_trigger_reply(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_bare_echo_of_question_does_not_trigger_reply(self) -> None:
         channel = Channel(["Proceed (y/n)\n", "", "(Cisco Controller) >", "", ""])
         self.assertTrue(NetmikoSession(channel, io.StringIO(), io.StringIO()).run("Proceed (y/n)"))
         self.assertEqual(channel.writes, ["Proceed (y/n)\n"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_wlan_status_is_specific_to_requested_id_and_top_level_status(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_wlan_status_is_specific_to_requested_id_and_top_level_status(self) -> None:
         for state in ("Enabled", "Disabled"):
             with self.subTest(state=state):
                 channel = Channel(
@@ -330,8 +350,8 @@ class SessionTests(unittest.TestCase):
                     state == "Enabled",
                 )
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_unknown_or_ambiguous_wlan_state_is_rejected(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_unknown_or_ambiguous_wlan_state_is_rejected(self) -> None:
         for output in (
             "WLAN Identifier........ 2\nStatus........ Enabled\n",
             "WLAN Identifier........ 1\nMAC Filtering........ Enabled\n",
@@ -344,8 +364,8 @@ class SessionTests(unittest.TestCase):
                     Channel([output + "(Cisco Controller) >", "", ""]), io.StringIO(), io.StringIO()
                 ).wlan_enabled("1")
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_timeout_blocks_further_commands_and_closes_transport_before_logout(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_timeout_blocks_further_commands_and_closes_transport_before_logout(self) -> None:
         conn = Mock()
         conn.read_channel.return_value = ""
         session = NetmikoSession(conn, io.StringIO(), io.StringIO())
@@ -362,9 +382,9 @@ class SessionTests(unittest.TestCase):
             [call[0] for call in conn.mock_calls[-2:]], ["paramiko_cleanup", "disconnect"]
         )
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     @patch("netmiko.ConnectHandler")
-    def test_paging_rejected_for_read_only_user_warns_and_continues(self, connect, sleep):
+    def test_paging_rejected_for_read_only_user_warns_and_continues(self, connect: Mock) -> None:
         # config paging requires read-write privileges; a read-only user can still
         # run show commands, and Netmiko could not have disabled paging for them either.
         connect.return_value.read_channel.side_effect = [
@@ -382,9 +402,9 @@ class SessionTests(unittest.TestCase):
         connect.return_value.paramiko_cleanup.assert_not_called()
         connect.return_value.disconnect.assert_called_once()
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     @patch("netmiko.ConnectHandler")
-    def test_paging_setup_timeout_closes_connection(self, connect, sleep):
+    def test_paging_setup_timeout_closes_connection(self, connect: Mock) -> None:
         connect.return_value.read_channel.return_value = ""
         with (
             patch("air_ssh.infrastructure.session.time.monotonic", side_effect=[0, 121, 121, 132]),
@@ -395,8 +415,8 @@ class SessionTests(unittest.TestCase):
             )
         connect.return_value.disconnect.assert_called_once()
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_confirmation_with_warning_on_the_same_line_is_answered(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_confirmation_with_warning_on_the_same_line_is_answered(self) -> None:
         # Documented prompts: clear ap config, clear ap eventlog, config certificate,
         # config rogue adhoc, config mesh range.
         for question in (
@@ -419,8 +439,8 @@ class SessionTests(unittest.TestCase):
                 )
                 self.assertEqual(channel.writes, ["clear ap config ap1\n", "y\n"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_show_output_with_dotted_leaders_is_never_answered(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_show_output_with_dotted_leaders_is_never_answered(self) -> None:
         channel = Channel(
             [
                 "Description.......Are you sure you want continue? (y/n)",
@@ -433,8 +453,8 @@ class SessionTests(unittest.TestCase):
         self.assertTrue(NetmikoSession(channel, io.StringIO(), io.StringIO()).run("show wlan 1"))
         self.assertEqual(channel.writes, ["show wlan 1\n"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_cannot_response_is_a_controller_error(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_cannot_response_is_a_controller_error(self) -> None:
         channel = Channel(
             [
                 "config 802.11a exp-bwreq enable\n",
@@ -449,8 +469,8 @@ class SessionTests(unittest.TestCase):
                 "config 802.11a exp-bwreq enable"
             )
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_cannot_in_show_output_does_not_fail_a_status_read(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_cannot_in_show_output_does_not_fail_a_status_read(self) -> None:
         channel = Channel(
             [
                 "show wlan 1\nWLAN Identifier.................. 1\n",
@@ -464,12 +484,16 @@ class SessionTests(unittest.TestCase):
 
 
 class ApChannel(Channel):
+    """Provide the AP base prompt alongside scripted channel reads."""
+
     base_prompt = "ap-153-4"
 
 
 class ApSessionTests(unittest.TestCase):
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_privileged_prompt_ends_output_and_controller_prompt_does_not(self, sleep):
+    """Exercise privileged AP sessions and controller-only restrictions."""
+
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_privileged_prompt_ends_output_and_controller_prompt_does_not(self) -> None:
         channel = ApChannel(
             [
                 "show version\n",
@@ -485,8 +509,8 @@ class ApSessionTests(unittest.TestCase):
         self.assertIn("8.10.185.0", out.getvalue())
         self.assertEqual(channel.writes, ["show version\n"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_documented_ap_errors_are_failures(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_documented_ap_errors_are_failures(self) -> None:
         for error in (
             "% Incomplete command.",
             '% Ambiguous command: "show con"',
@@ -497,8 +521,8 @@ class ApSessionTests(unittest.TestCase):
                 with self.assertRaisesRegex(OperationError, "AP rejected"):
                     ApSession(channel, io.StringIO(), io.StringIO()).run("ex")
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_controller_error_words_do_not_fail_ap_output(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_controller_error_words_do_not_fail_ap_output(self) -> None:
         channel = ApChannel(
             [
                 "show logging\n",
@@ -510,8 +534,8 @@ class ApSessionTests(unittest.TestCase):
         )
         self.assertTrue(ApSession(channel, io.StringIO(), io.StringIO()).run("show logging"))
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_ap_never_answers_controller_style_questions(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_ap_never_answers_controller_style_questions(self) -> None:
         # Nothing is documented for the AP; an unexpected question waits, then Ctrl-Z.
         channel = ApChannel(["Are you sure you want to continue? (y/n)", "", "\nap-153-4#", "", ""])
         with patch(
@@ -520,14 +544,14 @@ class ApSessionTests(unittest.TestCase):
             self.assertFalse(ApSession(channel, io.StringIO(), io.StringIO()).run("reload"))
         self.assertEqual(channel.writes, ["reload\n", "\x1a"])
 
-    @patch("air_ssh.infrastructure.session.time.sleep")
-    def test_fallback_prompt_without_base_prompt(self, sleep):
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_fallback_prompt_without_base_prompt(self) -> None:
         channel = Channel(["show version\nUptime : 1 day\n", "cisco-wave2-ap#", "", ""])
         self.assertTrue(ApSession(channel, io.StringIO(), io.StringIO()).run("show version"))
         for line in ("(Cisco Controller) >", "-> next#", "a b#", "#"):
             self.assertIsNone(ApSession.FALLBACK_PROMPT.fullmatch(line), line)
 
-    def test_controller_only_operations_are_refused(self):
+    def test_controller_only_operations_are_refused(self) -> None:
         session = ApSession(ApChannel([]), io.StringIO(), io.StringIO())
         with self.assertRaises(UsageError):
             session.wlan_enabled("1")
@@ -535,7 +559,9 @@ class ApSessionTests(unittest.TestCase):
             session.save()
 
     @patch("netmiko.ConnectHandler")
-    def test_ap_connection_enters_privileged_exec_without_paging_commands(self, connect):
+    def test_ap_connection_enters_privileged_exec_without_paging_commands(
+        self, connect: Mock
+    ) -> None:
         connect.return_value.read_channel.return_value = ""
         session = open_session(
             Target("ap1", "192.0.2.17", "admin", "test-secret", kind="ap", enable_password="en"),
@@ -558,7 +584,7 @@ class ApSessionTests(unittest.TestCase):
         connect.return_value.disconnect.assert_called_once()
 
     @patch("netmiko.ConnectHandler")
-    def test_wrong_enable_secret_is_reported_without_the_secret(self, connect):
+    def test_wrong_enable_secret_is_reported_without_the_secret(self, connect: Mock) -> None:
         connect.return_value.enable.side_effect = ValueError("Failed to enter enable mode")
         with self.assertRaises(OperationError) as raised:
             open_session(

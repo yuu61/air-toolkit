@@ -19,6 +19,7 @@ __pycache__/
 *.egg-info/
 /build/
 .ruff_cache/
+.import_linter_cache/
 .mypy_cache/
 .pytest_cache/
 .venv/

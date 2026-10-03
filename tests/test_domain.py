@@ -1,3 +1,9 @@
+# Copyright (c) 2026 yuu61
+
+"""Verify inventory, credential precedence, and command validation rules."""
+
+from __future__ import annotations
+
 import unittest
 
 from air_ssh.domain import (
@@ -12,19 +18,21 @@ from air_ssh.domain.credentials import resolve_password
 
 
 class InventoryTests(unittest.TestCase):
-    def test_wrapped_and_bare_inventory_ignore_comments(self):
+    """Exercise device selection, credentials, and operation validation."""
+
+    def test_wrapped_and_bare_inventory_ignore_comments(self) -> None:
         devices = {"_comment": "local only", "lab": {"host": "192.0.2.1"}}
         expected = {"lab": {"host": "192.0.2.1"}}
         self.assertEqual(parse_inventory(devices, "test"), expected)
         self.assertEqual(parse_inventory({"devices": devices}, "test"), expected)
 
-    def test_invalid_inventory_does_not_leak_values(self):
+    def test_invalid_inventory_does_not_leak_values(self) -> None:
         for value in ([], {"devices": []}, {"lab": "sensitive-value"}):
             with self.subTest(value=value), self.assertRaises(UsageError) as raised:
                 parse_inventory(value, "test")
             self.assertNotIn("sensitive-value", str(raised.exception))
 
-    def test_device_is_explicit_and_cli_beats_environment(self):
+    def test_device_is_explicit_and_cli_beats_environment(self) -> None:
         devices = {"a": {}, "b": {}}
         self.assertEqual(select_entry("a", devices, {"AIRONET_DEVICE": "b"})[0], "a")
         self.assertEqual(select_entry(None, devices, {"AIRONET_DEVICE": "b"})[0], "b")
@@ -32,7 +40,7 @@ class InventoryTests(unittest.TestCase):
             with self.assertRaises(UsageError):
                 select_entry(name, devices, {})
 
-    def test_password_precedence(self):
+    def test_password_precedence(self) -> None:
         env = {"LAB_PASS": "per-device", "WLC_PASS": "global"}
         entry = {"password": "inventory-value", "password_env": "LAB_PASS"}
         self.assertEqual(resolve_password(entry, env), "inventory-value")
@@ -41,7 +49,7 @@ class InventoryTests(unittest.TestCase):
         with self.assertRaises(UsageError):
             resolve_password({"password_env": "MISSING"}, {})
 
-    def test_target_aliases_port_and_hidden_password(self):
+    def test_target_aliases_port_and_hidden_password(self) -> None:
         target = resolve_target(
             "lab",
             {"ip": "192.0.2.1", "user": "operator", "port": "2222", "password": "test-secret"},
@@ -52,7 +60,7 @@ class InventoryTests(unittest.TestCase):
         )
         self.assertNotIn("test-secret", repr(target))
 
-    def test_kind_defaults_to_controller_and_me_is_an_alias(self):
+    def test_kind_defaults_to_controller_and_me_is_an_alias(self) -> None:
         valid = {"host": "192.0.2.1", "username": "operator", "password": "test-secret"}
         self.assertEqual(resolve_target("lab", valid, {}).kind, "wlc")
         self.assertEqual(resolve_target("lab", {**valid, "kind": "ME"}, {}).kind, "wlc")
@@ -63,7 +71,7 @@ class InventoryTests(unittest.TestCase):
             with self.subTest(kind=kind), self.assertRaises(UsageError):
                 resolve_target("lab", {**valid, "kind": kind}, {})
 
-    def test_ap_enable_secret_precedence_and_hidden(self):
+    def test_ap_enable_secret_precedence_and_hidden(self) -> None:
         valid = {"kind": "ap", "host": "192.0.2.1", "username": "admin", "password": "login-secret"}
         env = {"AP_ENABLE": "env-secret"}
         for entry, expected in (
@@ -81,7 +89,7 @@ class InventoryTests(unittest.TestCase):
                 self.assertEqual(target.enable_password, expected)
                 self.assertNotIn(expected, repr(target))
 
-    def test_invalid_fields_fail_before_connecting(self):
+    def test_invalid_fields_fail_before_connecting(self) -> None:
         valid = {"host": "192.0.2.1", "username": "operator", "password": "test-secret"}
         for field, value in (
             ("host", ""),
@@ -96,7 +104,7 @@ class InventoryTests(unittest.TestCase):
             with self.subTest(field=field, value=value), self.assertRaises(UsageError):
                 resolve_target("lab", {**valid, field: value}, {})
 
-    def test_commands_that_leave_the_root_prompt_are_rejected(self):
+    def test_commands_that_leave_the_root_prompt_are_rejected(self) -> None:
         # A mode word alone opens a sub-prompt, logout/exit end the session, and
         # config prompt changes the prompt the session waits for.
         for text in (
@@ -114,12 +122,21 @@ class InventoryTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(Command(text).text, text)
 
-    def test_wlan_id_cannot_inject_commands(self):
-        for value in ("", "0", "-1", "513", "9" * 5000, "1\nsave config", "1 extra", "１"):
+    def test_wlan_id_cannot_inject_commands(self) -> None:
+        for value in (
+            "",
+            "0",
+            "-1",
+            "513",
+            "9" * 5000,
+            "1\nsave config",
+            "1 extra",
+            "\N{FULLWIDTH DIGIT ONE}",
+        ):
             with self.subTest(value=value), self.assertRaises(UsageError):
                 CycleWlan(value)
 
-    def test_wlan_id_boundaries_and_normalization(self):
+    def test_wlan_id_boundaries_and_normalization(self) -> None:
         self.assertEqual(CycleWlan("1").disable, "config wlan disable 1")
         self.assertEqual(CycleWlan("512").enable, "config wlan enable 512")
         self.assertEqual(CycleWlan("0001").wlan_id, "1")

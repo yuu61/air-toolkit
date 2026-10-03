@@ -1,3 +1,9 @@
+# Copyright (c) 2026 yuu61
+
+"""Verify argument order, invalid requests, and CLI failure reporting."""
+
+from __future__ import annotations
+
 import io
 import unittest
 from contextlib import redirect_stderr
@@ -8,7 +14,9 @@ from air_ssh.cli import main, parse_args
 
 
 class CliTests(unittest.TestCase):
-    def test_interleaved_cycles_commands_and_global_flags(self):
+    """Exercise the public argument parser and process exit status."""
+
+    def test_interleaved_cycles_commands_and_global_flags(self) -> None:
         req = parse_args(
             [
                 "--cycle-wlan",
@@ -31,7 +39,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(req.inventory, "local.json")
         self.assertTrue(req.save)
 
-    def test_invalid_cli_requests(self):
+    def test_invalid_cli_requests(self) -> None:
         for args in (
             ["--cycle-wlan"],
             ["--cycle-wlan", "--save"],
@@ -43,15 +51,15 @@ class CliTests(unittest.TestCase):
             with self.subTest(args=args), self.assertRaises(UsageError):
                 parse_args(args)
 
-    def test_error_exit_status(self):
+    def test_error_exit_status(self) -> None:
         with (
-            patch("air_ssh.cli.run", side_effect=OperationError("failed")),
+            patch("air_ssh.cli.runner.run", side_effect=OperationError("failed")),
             redirect_stderr(io.StringIO()) as err,
         ):
             self.assertEqual(main(["--save"]), 1)
         self.assertIn("ERROR: failed", err.getvalue())
 
-    def test_no_commands_exit_without_connecting(self):
+    def test_no_commands_exit_without_connecting(self) -> None:
         with redirect_stderr(io.StringIO()) as err:
             self.assertEqual(main([]), 1)
         self.assertIn("no commands", err.getvalue())

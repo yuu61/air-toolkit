@@ -1,21 +1,43 @@
+# Copyright (c) 2026 yuu61
+
 """Locate and decode the agent-independent inventory."""
+
+from __future__ import annotations
 
 import json
 import os
-from collections.abc import Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from ..domain import UsageError, parse_inventory
+from air_ssh.domain import UsageError, parse_inventory
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def inventory_path(override: str | None, env: Mapping[str, str]) -> Path:
+    """Locate the inventory using the override, supplied environment, or home.
+
+    Returns:
+        The expanded inventory path.
+
+    """
     chosen = override or env.get("AIRONET_INVENTORY")
     return Path(chosen).expanduser() if chosen else Path.home() / ".aironet" / "devices.json"
 
 
 def read_inventory(
     override: str | None = None, env: Mapping[str, str] | None = None
-) -> tuple[dict[str, dict], Path]:
+) -> tuple[dict[str, dict[str, object]], Path]:
+    """Read and validate an inventory, accepting a UTF-8 byte order mark.
+
+    Returns:
+        The device entries and path, with an empty inventory for a missing default.
+
+    Raises:
+        UsageError: An explicit file is missing or the file cannot be decoded.
+
+    """
     env = os.environ if env is None else env
     path = inventory_path(override, env)
     try:
@@ -24,12 +46,13 @@ def read_inventory(
         # A first --list should explain where to create the inventory.
         if not override and not env.get("AIRONET_INVENTORY"):
             return {}, path
-        raise UsageError(f"inventory file not found: {path}") from None
+        message = f"inventory file not found: {path}"
+        raise UsageError(message) from None
     except json.JSONDecodeError as exc:
-        raise UsageError(
-            f"invalid JSON in {path} at line {exc.lineno}, column {exc.colno}"
-        ) from None
+        message = f"invalid JSON in {path} at line {exc.lineno}, column {exc.colno}"
+        raise UsageError(message) from None
     except (OSError, UnicodeError):
         # Do not include file contents or a decoder's offending bytes (passwords).
-        raise UsageError(f"cannot read inventory: {path}") from None
+        message = f"cannot read inventory: {path}"
+        raise UsageError(message) from None
     return parse_inventory(data, str(path)), path

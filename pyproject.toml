@@ -9,7 +9,7 @@ authors = [{ name = "yuu61" }]
 dependencies = ["netmiko>=4.7"]
 
 [project.optional-dependencies]
-dev = ["ruff>=0.16.7,<0.17"]
+dev = ["ruff>=0.16.7,<0.17", "import-linter>=2.15,<3"]
 
 [project.urls]
 Homepage = "https://github.com/yuu61/aironet"
@@ -27,11 +27,68 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/air_ssh"]
 
+[tool.importlinter]
+root_package = "air_ssh"
+# Type-only dependencies must obey the same layer boundaries as runtime imports.
+exclude_type_checking_imports = false
+
+[[tool.importlinter.contracts]]
+name = "Every production module belongs to the dependency layers"
+type = "layers"
+containers = ["air_ssh"]
+layers = ["__main__", "cli", "application", "infrastructure", "domain"]
+exhaustive = true
+
+# Protected contracts restrict direct imports; valid indirect dependencies through
+# application remain allowed. Imports within each protected package are allowed.
+[[tool.importlinter.contracts]]
+name = "Domain is imported only by application and infrastructure"
+type = "protected"
+protected_modules = ["air_ssh.domain"]
+allowed_importers = ["air_ssh.application", "air_ssh.infrastructure"]
+
+[[tool.importlinter.contracts]]
+name = "Infrastructure is imported only by application"
+type = "protected"
+protected_modules = ["air_ssh.infrastructure"]
+allowed_importers = ["air_ssh.application"]
+
+[[tool.importlinter.contracts]]
+name = "Application is imported only by CLI"
+type = "protected"
+protected_modules = ["air_ssh.application"]
+allowed_importers = ["air_ssh.cli"]
+
+[[tool.importlinter.contracts]]
+name = "CLI is imported only by the module entry point"
+type = "protected"
+protected_modules = ["air_ssh.cli"]
+allowed_importers = ["air_ssh.__main__"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
 required-version = ">=0.16.7,<0.17"
 
 [tool.ruff.lint]
-# Keep the existing default checks explicit when Ruff is updated.
-select = ["E4", "E7", "E9", "F"]
+select = ["ALL"]
+# Include preview rules while keeping the formatter's stable layout.
+preview = true
+ignore = [
+    "missing-trailing-comma", # Ruff format owns trailing commas.
+    "incorrect-blank-line-before-class",   # Use no blank line before class docstrings (D211).
+    "multi-line-summary-second-line",   # Put multiline docstring summaries on the first line (D212).
+    "raise-vanilla-args", # CLI/domain errors carry context from the validation or operation site.
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Cleanup must catch arbitrary transport errors without masking the original failure.
+"src/air_ssh/application/run.py" = ["blind-except"]
+# Netmiko is loaded lazily so help and inventory listing work without SSH dependencies.
+# AP overrides keep the common session signatures even when arguments/self are unused.
+"src/air_ssh/infrastructure/session.py" = ["unused-method-argument", "blind-except", "import-outside-top-level", "no-self-use"]
+# Printing user-facing errors is the CLI's responsibility.
+"src/air_ssh/cli/runner.py" = ["print"]
+# unittest methods describe the cases in their names; assertions and exception checks
+# deliberately use unittest, and password literals are fake values for SSH mocks.
+"tests/**/*.py" = ["undocumented-public-method", "too-many-public-methods", "pytest-unittest-assertion", "pytest-unittest-raises-assertion", "hardcoded-password-func-arg"]

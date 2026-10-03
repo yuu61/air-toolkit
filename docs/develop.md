@@ -26,8 +26,10 @@ make check
 
 | コマンド | 内容 |
 | --- | --- |
-| `make check` | Ruff、Go vet / golangci-lint、Python の版別テスト、Go テスト、ビルド |
+| `make check` | Ruff / Import Linter、Go vet / golangci-lint、Python の版別テスト、Go テスト、ビルド |
 | `make lint` | Python と Go の静的検査 |
+| `make lint-python` | Ruff と Import Linter による Python の静的検査・依存方向の検査 |
+| `make lint-go` | Go vet と golangci-lint（depguard を含む） |
 | `make test` | Python 3.10 / 3.14 のテストと Go テスト |
 | `make test-python PYTHON=3.10` | 指定した Python で unittest |
 | `make test-python-matrix PYTHON_VERSIONS="3.10 3.14"` | 指定した複数の Python を検証 |
@@ -51,15 +53,48 @@ uv sync --extra dev
 uv run python -m unittest
 uv run ruff check src/ tests/
 uv run ruff format --check src/ tests/
+uv run lint-imports --no-logo
 go test ./...
 go vet ./...
 golangci-lint run ./...
 ```
 
 Python の整形は `uv run ruff format src/ tests/`、Go の整形は `golangci-lint fmt ./...`。
-Ruff は pyproject.toml に対象のルールと Python 3.10 の構文基準を明記します。
+Ruff は [pyproject.toml](../pyproject.toml) の `select = ["ALL"]` と `preview = true` で、
+プレビューを含む全ルールを有効にし、Python 3.10 の構文を基準に検査します。
+除外はフォーマッターとの競合、文脈付きのエラー、CLI の表示、SSH の遅延 import・復旧・共通メソッド、
+unittest と疑似資格情報に必要なものに限り、設定に理由と適用範囲を記します。
+指摘はコードの修正で解消し、行単位の無効化コメントは追加しません。
+Ruff の更新時には新しく有効になるルールも確認します。
 Go は `.golangci.yml` の検査で 0 issues を保ちます。
 テキストは `.gitattributes` で LF に揃え、インベントリや出力ファイルは文字コードを明示して扱います。
+
+### import の依存方向
+
+Python は [pyproject.toml](../pyproject.toml) の Import Linter、Go は
+[.golangci.yml](../.golangci.yml) の depguard で次の直接 import だけを許可します。
+同じ層の中での import と標準ライブラリの利用は可能です。
+
+| import 元 | 許可する他の層 |
+| --- | --- |
+| `domain` | なし |
+| `infrastructure` | `domain` |
+| `application` | `domain`、`infrastructure` |
+| `cli` | `application` |
+| 起動点（Python の `__main__`、Go の `cmd/manualbook`） | `cli` |
+
+`cli → application → infrastructure` のような間接依存は許可します。
+`cli → infrastructure` / `domain` の直接 import と、下位層から上位層への依存は検査で失敗します。
+無効化コメントによる例外は追加しません。
+
+Python は各層の子モジュール、関数内の import、`TYPE_CHECKING` 内の import も検査し、
+`air_ssh` 直下に未分類のモジュールを追加すると失敗します。`tests/` は本体の層に含めず、
+各層を直接検証できます。検査キャッシュ `.import_linter_cache/` はコミットしません。
+
+Go は各層のサブディレクトリとテストにも同じ規則を適用します。
+外部パッケージは明示したものだけを許可し、現在は `infrastructure` の `golang.org/x/net/html`
+（そのサブパッケージを含む）だけです。未分類のディレクトリは標準ライブラリのみを許可します。
+新しい層や Go の外部依存を追加するときは、依存方向を確認して検査設定を更新してください。
 
 ### テストの範囲
 

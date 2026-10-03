@@ -1,11 +1,18 @@
+# Copyright (c) 2026 yuu61
+
 """Netmiko transport and AireOS's streaming/prompt protocol."""
+
+from __future__ import annotations
 
 import re
 import sys
 import time
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
 
-from ..domain import OperationError, Target, UsageError
+from air_ssh.domain import OperationError, Target, UsageError
+
+if TYPE_CHECKING:
+    from netmiko import BaseConnection
 
 # A waiting question ends its line with (y/n); the controller may put a warning
 # sentence before it on the same line ("Clear ap-config will ... reboot the AP.
@@ -52,7 +59,12 @@ CTRL_Z = "\x1a"
 
 
 def waiting_line(tail: str) -> str:
-    """The last line the controller has printed, as a human would see it."""
+    """Strip terminal controls and extract the controller's last printed line.
+
+    Returns:
+        The complete waiting line as a human would see it.
+
+    """
     clean_tail = ANSI_RE.sub("", tail).replace("\r", "\n").rstrip()
     return clean_tail.rsplit("\n", 1)[-1].strip()
 
@@ -65,7 +77,8 @@ class NetmikoSession:
     PROMPT_TAIL = r"\s*>"
     FALLBACK_PROMPT = PROMPT_RE
 
-    def __init__(self, conn, out: TextIO, err: TextIO):
+    def __init__(self, conn: BaseConnection, out: TextIO, err: TextIO) -> None:
+        """Bind the connection, output streams, and device-specific root prompt."""
         self._conn = conn
         self._out = out
         self._err = err
@@ -78,15 +91,25 @@ class NetmikoSession:
         )
 
     def run(self, command: str, timeout: int = DEFAULT_TIMEOUT) -> bool:
-        """Stream a command. Timeout is inactivity, not total runtime."""
+        """Stream a command using an inactivity timeout rather than total runtime.
+
+        Returns:
+            Whether the exchange completed before the inactivity timeout.
+
+        """
         return self._exchange(command, timeout) is not None
 
     def _rejected(self, command: str, output: str) -> bool:
-        is_config = command.split()[0].lower() == "config"
+        is_config = command.split(maxsplit=1)[0].lower() == "config"
         return bool(ERROR_RE.search(output) or (is_config and CONFIG_ERROR_RE.search(output)))
 
     def _answer(self, command: str, line: str) -> str | None:
-        """What to type at a complete waiting line, or None to keep waiting."""
+        """Choose a reply only for a recognized, complete waiting line.
+
+        Returns:
+            The reply to send, or None to keep waiting.
+
+        """
         if ENTER_RE.fullmatch(line):
             return "\n"
         if MORE_RE.fullmatch(line):
@@ -98,7 +121,8 @@ class NetmikoSession:
 
     def _exchange(self, command: str, timeout: int = DEFAULT_TIMEOUT) -> str | None:
         if not self._ready:
-            raise OperationError("SSH command state is unknown; reconnect before further commands")
+            message = "SSH command state is unknown; reconnect before further commands"
+            raise OperationError(message)
         print(f"===== {command} =====", file=self._out)
         self._ready = False
         self._conn.write_channel(command + "\n")
@@ -134,7 +158,8 @@ class NetmikoSession:
                         row for row in output.splitlines() if row.strip() != command.strip()
                     )
                     if self._rejected(command, output):
-                        raise OperationError(f"{self.DEVICE} rejected '{command}'")
+                        message = f"{self.DEVICE} rejected '{command}'"
+                        raise OperationError(message)
                     return output
                 prompt_pending = True
             elif time.monotonic() - last_data > timeout:
@@ -178,13 +203,29 @@ class NetmikoSession:
             time.sleep(0.3)
 
     def save(self) -> None:
+        """Save the controller configuration and require its success marker.
+
+        Raises:
+            OperationError: The save did not finish with confirmation.
+
+        """
         output = self._exchange("save config")
         if output is None or not re.search(
             r"^\s*Configuration Saved!\s*$", output, re.MULTILINE | re.IGNORECASE
         ):
-            raise OperationError("configuration save was not confirmed")
+            message = "configuration save was not confirmed"
+            raise OperationError(message)
 
     def wlan_enabled(self, wlan_id: str) -> bool:
+        """Read the requested WLAN and require an unambiguous identifier and status.
+
+        Returns:
+            Whether the requested WLAN is enabled.
+
+        Raises:
+            OperationError: The WLAN identifier or status could not be confirmed.
+
+        """
         output = self._exchange(f"show wlan {wlan_id}")
         if output is not None:
             identifiers = re.findall(r"^WLAN Identifier\.*\s+(\d+)\s*$", output, re.MULTILINE)
@@ -193,9 +234,11 @@ class NetmikoSession:
             )
             if identifiers == [wlan_id] and len(states) == 1:
                 return states[0].lower() == "enabled"
-        raise OperationError(f"could not determine status of WLAN {wlan_id}")
+        message = f"could not determine status of WLAN {wlan_id}"
+        raise OperationError(message)
 
     def close(self) -> None:
+        """Close the transport first when a pending command makes logout unsafe."""
         if not self._ready:
             # Close the transport first so Netmiko's logout/paging cleanup cannot
             # send CLI commands into a pending confirmation or unfinished command.
@@ -223,19 +266,44 @@ class ApSession(NetmikoSession):
         return None
 
     def save(self) -> None:
-        raise UsageError("--save applies to controllers; the AP CLI has no save config")
+        """Reject controller configuration saving on the AP CLI.
+
+        Raises:
+            UsageError: AP sessions do not support save config.
+
+        """
+        message = "--save applies to controllers; the AP CLI has no save config"
+        raise UsageError(message)
 
     def wlan_enabled(self, wlan_id: str) -> bool:
-        raise UsageError("--cycle-wlan applies to controllers; the AP CLI has no WLANs")
+        """Reject controller WLAN operations on the AP CLI.
+
+        Raises:
+            UsageError: AP sessions do not expose controller WLANs.
+
+        """
+        message = "--cycle-wlan applies to controllers; the AP CLI has no WLANs"
+        raise UsageError(message)
 
 
 def open_session(target: Target, out: TextIO, err: TextIO) -> NetmikoSession:
+    """Connect and prepare a controller or privileged AP session.
+
+    Returns:
+        The ready session, with controller paging or AP enable mode configured.
+
+    Raises:
+        UsageError: Netmiko is unavailable in the current interpreter.
+        OperationError: The SSH connection failed.
+
+    """
     # Help and inventory listing do not require Netmiko.
     try:
         from netmiko import ConnectHandler
         from netmiko.exceptions import NetmikoAuthenticationException, NetmikoTimeoutException
     except ImportError:
-        raise UsageError(f"netmiko is not installed for {sys.executable}; run uv sync") from None
+        message = f"netmiko is not installed for {sys.executable}; run uv sync"
+        raise UsageError(message) from None
     options = {
         "host": target.host,
         "port": target.port,
@@ -250,9 +318,8 @@ def open_session(target: Target, out: TextIO, err: TextIO) -> NetmikoSession:
     try:
         conn = ConnectHandler(**options)
     except (NetmikoAuthenticationException, NetmikoTimeoutException, OSError) as exc:
-        raise OperationError(
-            f"SSH connection to {target.name!r} failed ({type(exc).__name__})"
-        ) from None
+        message = f"SSH connection to {target.name!r} failed ({type(exc).__name__})"
+        raise OperationError(message) from None
     session = ApSession(conn, out, err) if target.is_ap else NetmikoSession(conn, out, err)
     try:
         if target.is_ap:
@@ -262,21 +329,22 @@ def open_session(target: Target, out: TextIO, err: TextIO) -> NetmikoSession:
     except BaseException:
         try:
             session.close()
-        except Exception as exc:  # noqa: BLE001 -- preserve initialization failure
+        except Exception as exc:
             print(f"[WARN] disconnect after initialization failure failed: {exc}", file=err)
         raise
     return session
 
 
-def _enter_privileged_exec(conn, target: Target, timeout_error: type) -> None:
+def _enter_privileged_exec(
+    conn: BaseConnection, target: Target, timeout_error: type[Exception]
+) -> None:
     # The AP starts in user EXEC (">"); "enable" asks for the secret. Netmiko reports
     # a wrong or missing secret as ValueError, which must not leak past the CLI.
     try:
         conn.enable()
     except (ValueError, timeout_error, OSError):
-        raise OperationError(
-            f"could not enter privileged EXEC on {target.name!r}; check enable_password"
-        ) from None
+        message = f"could not enter privileged EXEC on {target.name!r}; check enable_password"
+        raise OperationError(message) from None
 
 
 def _enable_paging(session: NetmikoSession, err: TextIO) -> None:
@@ -296,4 +364,5 @@ def _enable_paging(session: NetmikoSession, err: TextIO) -> None:
         )
         return
     if not enabled:
-        raise OperationError("could not enable CLI paging")
+        message = "could not enable CLI paging"
+        raise OperationError(message)

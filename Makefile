@@ -15,7 +15,7 @@ PYTHON_TEST_TARGETS := $(addprefix test-python-,$(PYTHON_VERSIONS))
 .PHONY: check lint lint-python lint-go test test-python test-python-matrix \
         test-go build $(PYTHON_TEST_TARGETS)
 
-check: lint test build
+check: lint test
 
 lint: lint-python lint-go
 
@@ -24,6 +24,7 @@ test: test-python-matrix test-go
 lint-python:
 	$(PYTHON_RUN) ruff check src/ tests/
 	$(PYTHON_RUN) ruff format --check src/ tests/
+	$(PYTHON_RUN) lint-imports --no-logo
 
 lint-go:
 	"$(GO)" vet ./...
