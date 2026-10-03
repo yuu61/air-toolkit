@@ -35,13 +35,13 @@
 | --- | --- |
 | `-manifest PATH` | `manifest.json`。対象資料とトレインの説明 |
 | `-cache PATH` | `cache`。取得キャッシュのルート |
-| `-manuals PATH` | `AIRONET_MANUALS` → `~/.aironet/manuals/`。変換結果のルート |
+| `-manuals PATH` | `AIR_TOOLKIT_MANUALS` → `~/.air-toolkit/manuals/`。変換結果のルート |
 | `-only TRAIN/BOOK` | 未指定なら全資料。例: `8-10/cr` |
 | `-force` | `fetch` / `build` で取得済みの資料も取り直す |
 | `-delay DURATION` | `1s`。リクエスト間隔。1 秒以上を保つ |
 
 `-manuals` は `<train>/<book>/` の親ディレクトリを指定します。`air-manual` でも同じ資料を読むには
-環境変数 `AIRONET_MANUALS` をそのルートに設定してください。
+環境変数 `AIR_TOOLKIT_MANUALS` をそのルートに設定してください。
 
 **変換時は対象の `<manuals>/<train>/<book>/` を丸ごと消して書き直します。**
 README.md が無い非空ディレクトリは消さずに止めますが、README.md があれば削除対象になります。
@@ -49,7 +49,7 @@ README.md が無い非空ディレクトリは消さずに止めますが、READ
 `md` も同じ書き直しを行います。
 
 章の一覧は目次ページの `ul#bookToc` から決め、リンクを辿って対象を広げません。
-UA は `manualbook/0.1 (+https://github.com/yuu61/aironet)` とし、Accept / Accept-Language を送ります。
+UA は `manualbook/0.1 (+https://github.com/yuu61/air-toolkit)` とし、Accept / Accept-Language を送ります。
 403 の切り分けではブラウザの UA に置き換えず、この 3 つを確認します。
 一時的な通信失敗、HTTP 429 / 5xx は最大 3 回試します。
 図の取得失敗は警告して続行し、本文には元画像の URL が残ります。

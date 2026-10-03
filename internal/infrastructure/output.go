@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yuu61/aironet/internal/domain"
+	"github.com/yuu61/air-toolkit/internal/domain"
 )
 
 // 変換結果の書き出し。章ごとのディレクトリとトピックの Markdown、索引 (commands.tsv /

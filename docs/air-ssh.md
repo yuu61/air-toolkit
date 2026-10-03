@@ -6,7 +6,7 @@
 ## インベントリと認証情報
 
 インベントリは UTF-8 の JSON です（UTF-8 BOM も読み込めます）。
-参照先の選択順は `--inventory PATH` → `AIRONET_INVENTORY` → `~/.aironet/devices.json`。
+参照先の選択順は `--inventory PATH` → `AIR_TOOLKIT_INVENTORY` → `~/.air-toolkit/devices.json`。
 `air-ssh --list` は接続せず、参照先と機器名・ホスト・ユーザー名・種別を表示し、パスワードは表示しません。
 既定のファイルがまだ無ければ作成先を表示します。明示したファイルが無い場合はエラーです。
 
@@ -49,7 +49,7 @@ AP の enable パスワードは `enable_password` / `enable_secret` →
 }
 ```
 
-機器は `--device NAME`（`-d`）→ `AIRONET_DEVICE` の順で決めます。未指定ならエラーです。
+機器は `--device NAME`（`-d`）→ `AIR_TOOLKIT_DEVICE` の順で決めます。未指定ならエラーです。
 インベントリは本人だけが読み書きできる権限にします。POSIX では `chmod 600`、
 Windows ではファイルのセキュリティ設定でアクセス権を制限します。CLI はファイル権限を検査しません。
 

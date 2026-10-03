@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/yuu61/aironet/internal/application"
+	"github.com/yuu61/air-toolkit/internal/application"
 )
 
 const usage = `manualbook — cisco.com の WLC / Mobility Express のマニュアルを Markdown にする
@@ -22,7 +22,7 @@ const usage = `manualbook — cisco.com の WLC / Mobility Express のマニュ�
   md      取得キャッシュを Markdown と索引に変換する
 
 典型的な流れ:
-  manualbook build                 # cache/ に取り、~/.aironet/manuals/<train>/<book>/ に変換する
+  manualbook build                 # cache/ に取り、~/.air-toolkit/manuals/<train>/<book>/ に変換する
   manualbook build -only 8-5/cr    # 1 冊だけ
 
 取得済みの資料は取りに行かない (変換だけになる)。取り直すときは -force。
@@ -55,7 +55,7 @@ func runWith(name string, args []string, fn func(w io.Writer, o application.Opti
 	var o application.Options
 	fs.StringVar(&o.ManifestPath, "manifest", "manifest.json", "マニフェスト JSON")
 	fs.StringVar(&o.CacheDir, "cache", "cache", "取得キャッシュの置き場")
-	fs.StringVar(&o.ManualsDir, "manuals", application.DefaultManualsDir(), "変換結果の置き場。この下に <train>/<book>/ を作る ($AIRONET_MANUALS があればそれ)")
+	fs.StringVar(&o.ManualsDir, "manuals", application.DefaultManualsDir(), "変換結果の置き場。この下に <train>/<book>/ を作る ($AIR_TOOLKIT_MANUALS があればそれ)")
 	fs.StringVar(&o.Only, "only", "", "この資料だけ扱う (<train>/<book>、例: 8-10/cr)")
 	fs.BoolVar(&o.Force, "force", false, "取得済みの資料も取り直す")
 	fs.DurationVar(&o.Delay, "delay", time.Second, "cisco.com へのリクエストの間隔")

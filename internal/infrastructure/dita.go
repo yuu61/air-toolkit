@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/yuu61/aironet/internal/domain"
+	"github.com/yuu61/air-toolkit/internal/domain"
 )
 
 // cisco.com の章ページ (DITA から生成された HTML) を Markdown にする。

@@ -71,9 +71,9 @@ def select_entry(
         UsageError: No device was selected or the name is unknown.
 
     """
-    name = device or env.get("AIRONET_DEVICE")
+    name = device or env.get("AIR_TOOLKIT_DEVICE")
     if not name:
-        message = "select a device with --device NAME or $AIRONET_DEVICE (see --list)"
+        message = "select a device with --device NAME or $AIR_TOOLKIT_DEVICE (see --list)"
         raise UsageError(message)
     if name not in devices:
         message = f"unknown device {name!r} (see --list)"

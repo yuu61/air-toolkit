@@ -15,7 +15,7 @@ uv run air-ssh --help
 uv run python -m air_ssh --help
 ```
 
-実機のインベントリと資格情報は `~/.aironet/devices.json` に置きます。
+実機のインベントリと資格情報は `~/.air-toolkit/devices.json` に置きます。
 通常のテストでは実機にも Cisco のサイトにも接続しません。
 
 ## 検証

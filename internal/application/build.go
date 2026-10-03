@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/yuu61/aironet/internal/domain"
-	"github.com/yuu61/aironet/internal/infrastructure"
+	"github.com/yuu61/air-toolkit/internal/domain"
+	"github.com/yuu61/air-toolkit/internal/infrastructure"
 )
 
 // Options は build / fetch / md に共通の指定。
@@ -22,7 +22,7 @@ type Options struct {
 	Delay        time.Duration // リクエストの間隔
 }
 
-// DefaultManualsDir は変換結果の置き場 ($AIRONET_MANUALS → ~/.aironet/manuals)。
+// DefaultManualsDir は変換結果の置き場 ($AIR_TOOLKIT_MANUALS → ~/.air-toolkit/manuals)。
 func DefaultManualsDir() string {
 	home, _ := os.UserHomeDir()
 	return domain.DefaultManualsDir(os.Getenv, home)

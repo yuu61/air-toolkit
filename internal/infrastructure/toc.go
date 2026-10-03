@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/yuu61/aironet/internal/domain"
+	"github.com/yuu61/air-toolkit/internal/domain"
 )
 
 // 冊子の目次ページ (b-cr85.html など) の読み方。

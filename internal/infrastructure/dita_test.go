@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yuu61/aironet/internal/domain"
+	"github.com/yuu61/air-toolkit/internal/domain"
 )
 
 // cisco.com の章ページの形を最小限に写した断片。本物の HTML は Cisco の著作物なので

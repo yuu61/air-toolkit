@@ -1,4 +1,4 @@
-module github.com/yuu61/aironet
+module github.com/yuu61/air-toolkit
 
 go 1.27
 

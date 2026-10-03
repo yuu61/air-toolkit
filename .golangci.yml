@@ -72,8 +72,8 @@ linters:
             - "**/internal/domain/**/*.go"
           allow:
             - $gostd
-            - github.com/yuu61/aironet/internal/domain$
-            - github.com/yuu61/aironet/internal/domain/
+            - github.com/yuu61/air-toolkit/internal/domain$
+            - github.com/yuu61/air-toolkit/internal/domain/
         infrastructure:
           list-mode: strict
           files:
@@ -81,10 +81,10 @@ linters:
             - "**/internal/infrastructure/**/*.go"
           allow:
             - $gostd
-            - github.com/yuu61/aironet/internal/infrastructure$
-            - github.com/yuu61/aironet/internal/infrastructure/
-            - github.com/yuu61/aironet/internal/domain$
-            - github.com/yuu61/aironet/internal/domain/
+            - github.com/yuu61/air-toolkit/internal/infrastructure$
+            - github.com/yuu61/air-toolkit/internal/infrastructure/
+            - github.com/yuu61/air-toolkit/internal/domain$
+            - github.com/yuu61/air-toolkit/internal/domain/
             - golang.org/x/net/html$
             - golang.org/x/net/html/
         application:
@@ -94,12 +94,12 @@ linters:
             - "**/internal/application/**/*.go"
           allow:
             - $gostd
-            - github.com/yuu61/aironet/internal/application$
-            - github.com/yuu61/aironet/internal/application/
-            - github.com/yuu61/aironet/internal/infrastructure$
-            - github.com/yuu61/aironet/internal/infrastructure/
-            - github.com/yuu61/aironet/internal/domain$
-            - github.com/yuu61/aironet/internal/domain/
+            - github.com/yuu61/air-toolkit/internal/application$
+            - github.com/yuu61/air-toolkit/internal/application/
+            - github.com/yuu61/air-toolkit/internal/infrastructure$
+            - github.com/yuu61/air-toolkit/internal/infrastructure/
+            - github.com/yuu61/air-toolkit/internal/domain$
+            - github.com/yuu61/air-toolkit/internal/domain/
         cli:
           list-mode: strict
           files:
@@ -107,10 +107,10 @@ linters:
             - "**/internal/cli/**/*.go"
           allow:
             - $gostd
-            - github.com/yuu61/aironet/internal/cli$
-            - github.com/yuu61/aironet/internal/cli/
-            - github.com/yuu61/aironet/internal/application$
-            - github.com/yuu61/aironet/internal/application/
+            - github.com/yuu61/air-toolkit/internal/cli$
+            - github.com/yuu61/air-toolkit/internal/cli/
+            - github.com/yuu61/air-toolkit/internal/application$
+            - github.com/yuu61/air-toolkit/internal/application/
         entrypoint:
           list-mode: strict
           files:
@@ -118,8 +118,8 @@ linters:
             - "**/cmd/manualbook/**/*.go"
           allow:
             - $gostd
-            - github.com/yuu61/aironet/internal/cli$
-            - github.com/yuu61/aironet/internal/cli/
+            - github.com/yuu61/air-toolkit/internal/cli$
+            - github.com/yuu61/air-toolkit/internal/cli/
         unclassified:
           # New directories cannot bypass the layer rules through a helper package.
           list-mode: strict
@@ -178,4 +178,4 @@ formatters:
         group-params: true
     goimports:
       local-prefixes:
-        - github.com/yuu61/aironet
+        - github.com/yuu61/air-toolkit

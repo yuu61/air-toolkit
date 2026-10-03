@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yuu61/aironet/internal/domain"
+	"github.com/yuu61/air-toolkit/internal/domain"
 )
 
 // 資料の取得。マニフェストに書いた資料を取得キャッシュ cache/<train>/<book>/ へ取る。

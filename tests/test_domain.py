@@ -34,8 +34,8 @@ class InventoryTests(unittest.TestCase):
 
     def test_device_is_explicit_and_cli_beats_environment(self) -> None:
         devices = {"a": {}, "b": {}}
-        self.assertEqual(select_entry("a", devices, {"AIRONET_DEVICE": "b"})[0], "a")
-        self.assertEqual(select_entry(None, devices, {"AIRONET_DEVICE": "b"})[0], "b")
+        self.assertEqual(select_entry("a", devices, {"AIR_TOOLKIT_DEVICE": "b"})[0], "a")
+        self.assertEqual(select_entry(None, devices, {"AIR_TOOLKIT_DEVICE": "b"})[0], "b")
         for name in (None, "unknown"):
             with self.assertRaises(UsageError):
                 select_entry(name, devices, {})

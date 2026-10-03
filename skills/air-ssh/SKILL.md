@@ -12,7 +12,7 @@ description: air-ssh CLI で Cisco AireOS WLC / Mobility Express の状態確認
 
 ## 実行環境と対象を決める
 
-PATH の `air-ssh` を実行する。見つからなければ aironet の README にある
+PATH の `air-ssh` を実行する。見つからなければ air-toolkit の README にある
 クローンと `uv tool install -e <clone>` の導入手順を案内する。まず `--help` で利用可能な引数を確認する。
 以降の例の `wlc` と WLAN ID は例示であり、実際の対象に置き換える。
 
@@ -22,10 +22,10 @@ air-ssh --list
 air-ssh --device wlc "show sysinfo"
 ```
 
-- インベントリの選択順は `--inventory PATH` → 環境変数 `AIRONET_INVENTORY` → `~/.aironet/devices.json`。
+- インベントリの選択順は `--inventory PATH` → 環境変数 `AIR_TOOLKIT_INVENTORY` → `~/.air-toolkit/devices.json`。
   `--list` は接続せず、参照先と機器名・ホスト・ユーザー名・種別 (`wlc` / `ap`) を表示する。
 - 対象は依頼・会話の指定と `--list` を照合し、`--device NAME`（`-d`）で明示する。
-  `AIRONET_DEVICE` の指定も使える。複数候補から先頭の機器を勝手に選ばない。
+  `AIR_TOOLKIT_DEVICE` の指定も使える。複数候補から先頭の機器を勝手に選ばない。
 - 資格情報は CLI に解決させる。パスワードの選択順は機器の `password` →
   `password_env` が指す環境変数 → `WLC_PASS`。AP の enable パスワードは `enable_password` →
   `enable_password_env` → ログインパスワード。一覧確認のためにインベントリ全体や環境変数の値を表示しない。
@@ -37,7 +37,7 @@ air-ssh --device wlc "show sysinfo"
 機種・実行版は既知の情報を使い、実機調査の範囲なら `show sysinfo` (AP は `show version`) で確かめる。
 構文や制約が不明な場合は、ローカルの変換済みマニュアルを確認する。
 `air-manual` が利用可能ならその手順を使い、無ければ
-`AIRONET_MANUALS`（未設定なら `~/.aironet/manuals/`）の該当冊子の索引から本文を読む。
+`AIR_TOOLKIT_MANUALS`（未設定なら `~/.air-toolkit/manuals/`）の該当冊子の索引から本文を読む。
 
 ## 状態を確認する
 

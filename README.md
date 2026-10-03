@@ -1,4 +1,4 @@
-# aironet
+# air-toolkit
 
 Cisco AireOS WLC / Mobility Express と Aironet AP を運用するための SSH CLI、エージェント向け skill、参照マニュアルを作る HTML → Markdown 変換ツールです。
 Wave 2 / Catalyst Wi-Fi 6 AP 自身の CLI も扱います。Catalyst 9800 の IOS XE は対象外です。
@@ -15,19 +15,37 @@ Wave 2 / Catalyst Wi-Fi 6 AP 自身の CLI も扱います。Catalyst 9800 の I
 ### インストール
 
 ```console
-git clone https://github.com/yuu61/aironet "$HOME/.agents/skills/aironet"
-uv tool install -e "$HOME/.agents/skills/aironet"
+git clone https://github.com/yuu61/air-toolkit "$HOME/.agents/skills/air-toolkit"
+uv tool install -e "$HOME/.agents/skills/air-toolkit"
 ```
 
 `air-ssh` が見つからない場合は `uv tool update-shell` を実行し、ターミナルとエージェントを開き直します。
 
-更新は `git -C "$HOME/.agents/skills/aironet" pull` で本体と skill に反映されます。
-依存パッケージが変わった場合は `uv tool install --reinstall -e "$HOME/.agents/skills/aironet"`を再実行します。
+更新は `git -C "$HOME/.agents/skills/air-toolkit" pull` で本体と skill に反映されます。
+依存パッケージが変わった場合は `uv tool install --reinstall -e "$HOME/.agents/skills/air-toolkit"`を再実行します。
 プラグインを読み込んだセッションは開き直してください。
+
+### 旧名 aironet からの移行
+
+旧版を uv tool で導入済みの場合は、`uv tool uninstall aironet` の後に上の導入手順で
+`air-toolkit` をインストールします。既存のクローンを使う場合は、リポジトリのルートで
+`git remote set-url origin https://github.com/yuu61/air-toolkit.git` を実行します。
+CLI の `air-ssh`、マニュアル変換の `manualbook`、skill の `air-ssh` / `air-manual` は同じ名前で使えます。
+
+| 設定 | 旧名 | 新名 |
+| --- | --- | --- |
+| 標準クローン先 | `~/.agents/skills/aironet` | `~/.agents/skills/air-toolkit` |
+| インベントリ・資料の標準保存先 | `~/.aironet/` | `~/.air-toolkit/` |
+| インベントリの指定 | `AIRONET_INVENTORY` | `AIR_TOOLKIT_INVENTORY` |
+| 機器の指定 | `AIRONET_DEVICE` | `AIR_TOOLKIT_DEVICE` |
+| 資料の指定 | `AIRONET_MANUALS` | `AIR_TOOLKIT_MANUALS` |
+
+既存の `devices.json` と `manuals/` は新しい保存先へ移すか、`AIR_TOOLKIT_INVENTORY` と
+`AIR_TOOLKIT_MANUALS` に現在のパスを指定して使います。環境変数を使っている場合は名前も更新してください。
 
 ### 接続先と基本操作
 
-`~/.aironet/devices.json` に機器を定義します。以下のアドレスと資格情報は例です。
+`~/.air-toolkit/devices.json` に機器を定義します。以下のアドレスと資格情報は例です。
 
 ```json
 {
@@ -49,7 +67,7 @@ uv tool install -e "$HOME/.agents/skills/aironet"
 ```
 
 `air-ssh --list` インベントリの場所と機器名・ホスト・ユーザー名・種別を表示します。
-対象は `--device NAME`（短縮形 `-d`）または `AIRONET_DEVICE` で明示します。
+対象は `--device NAME`（短縮形 `-d`）または `AIR_TOOLKIT_DEVICE` で明示します。
 
 ```console
 air-ssh --device wlc "show sysinfo"
@@ -84,7 +102,7 @@ go build -ldflags="-s -w" ./cmd/manualbook
 Windows では `manualbook.exe` ができるので、PowerShell では `.\manualbook.exe build` と実行します。
 `-ldflags="-s -w"` は Windows Defender の誤検知を避けるために付けています。
 
-- 取得キャッシュは `cache/`、変換結果は `~/.aironet/manuals/<train>/<book>/` に置きます。
+- 取得キャッシュは `cache/`、変換結果は `~/.air-toolkit/manuals/<train>/<book>/` に置きます。
 - 2 回目以降は取得済みの資料を再利用します。取り直すときは `-force`、1 冊だけなら `-only 8-10/cr`。
 - 変換対象の冊子ディレクトリは消して書き直します。資料専用の出力先を使ってください。
 

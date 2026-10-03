@@ -88,7 +88,7 @@ func TestDefaultManualsDir(t *testing.T) {
 		t.Errorf("env: got %q", got)
 	}
 	got := DefaultManualsDir(func(string) string { return "" }, "/home/u")
-	if !strings.HasSuffix(got, "manuals") || !strings.Contains(got, ".aironet") {
+	if !strings.HasSuffix(got, "manuals") || !strings.Contains(got, ".air-toolkit") {
 		t.Errorf("home: got %q", got)
 	}
 }

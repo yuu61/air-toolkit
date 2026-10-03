@@ -24,10 +24,12 @@ class InventoryFileTests(unittest.TestCase):
 
     def test_path_precedence_and_default(self) -> None:
         self.assertEqual(
-            inventory_path("flag.json", {"AIRONET_INVENTORY": "env.json"}), Path("flag.json")
+            inventory_path("flag.json", {"AIR_TOOLKIT_INVENTORY": "env.json"}), Path("flag.json")
         )
-        self.assertEqual(inventory_path(None, {"AIRONET_INVENTORY": "env.json"}), Path("env.json"))
-        self.assertEqual(inventory_path(None, {}), Path.home() / ".aironet" / "devices.json")
+        self.assertEqual(
+            inventory_path(None, {"AIR_TOOLKIT_INVENTORY": "env.json"}), Path("env.json")
+        )
+        self.assertEqual(inventory_path(None, {}), Path.home() / ".air-toolkit" / "devices.json")
 
     def test_missing_default_is_empty_but_explicit_missing_is_error(self) -> None:
         with (
@@ -37,7 +39,7 @@ class InventoryFileTests(unittest.TestCase):
             self.assertEqual(read_inventory(env={})[0], {})
             for override, env in (
                 (str(Path(directory) / "missing"), {}),
-                (None, {"AIRONET_INVENTORY": str(Path(directory) / "missing")}),
+                (None, {"AIR_TOOLKIT_INVENTORY": str(Path(directory) / "missing")}),
             ):
                 with self.assertRaises(UsageError):
                     read_inventory(override, env)

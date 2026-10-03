@@ -35,8 +35,8 @@ def parse_args(argv: list[str]) -> Request:
         ),
         allow_abbrev=False,
     )
-    parser.add_argument("-d", "--device", help="device name in inventory ($AIRONET_DEVICE)")
-    parser.add_argument("--inventory", help="inventory path ($AIRONET_INVENTORY)")
+    parser.add_argument("-d", "--device", help="device name in inventory ($AIR_TOOLKIT_DEVICE)")
+    parser.add_argument("--inventory", help="inventory path ($AIR_TOOLKIT_INVENTORY)")
     parser.add_argument("--list", action="store_true", help="list devices without passwords")
     parser.add_argument("--save", action="store_true", help="save config after WLAN restoration")
     # Preserve command/cycle order while allowing global options anywhere.

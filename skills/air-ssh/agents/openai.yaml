@@ -1,3 +1,3 @@
 interface:
-  display_name: "Aironet SSH"
+  display_name: "Air Toolkit SSH"
   short_description: "Cisco WLC / Mobility Express / AP の状態確認・設定変更・保存"

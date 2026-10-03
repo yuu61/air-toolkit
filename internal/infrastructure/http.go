@@ -16,7 +16,7 @@ import (
 // 突き合わせていて、Go の net/http から Chrome の UA を送ると常に 403 になる
 // (同じ URL で交互に試して確認済み)。逆に、この UA に Accept と Accept-Language を
 // 添えれば常に 200 が返る。UA だけで Accept を省くと 403 になるので、3 つを揃えて送る。
-const UserAgent = "manualbook/0.1 (+https://github.com/yuu61/aironet)"
+const UserAgent = "manualbook/0.1 (+https://github.com/yuu61/air-toolkit)"
 
 // Client は cisco.com に礼儀正しく取りに行く HTTP クライアント。
 // 連続するリクエストの間に delay を置き、一時的な失敗だけ少し待って取り直す。

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yuu61/aironet/internal/domain"
+	"github.com/yuu61/air-toolkit/internal/domain"
 )
 
 // ReadManifest はマニフェストを読んで検証する。

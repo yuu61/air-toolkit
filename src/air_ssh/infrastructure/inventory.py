@@ -22,8 +22,8 @@ def inventory_path(override: str | None, env: Mapping[str, str]) -> Path:
         The expanded inventory path.
 
     """
-    chosen = override or env.get("AIRONET_INVENTORY")
-    return Path(chosen).expanduser() if chosen else Path.home() / ".aironet" / "devices.json"
+    chosen = override or env.get("AIR_TOOLKIT_INVENTORY")
+    return Path(chosen).expanduser() if chosen else Path.home() / ".air-toolkit" / "devices.json"
 
 
 def read_inventory(
@@ -44,7 +44,7 @@ def read_inventory(
         data = json.loads(path.read_text(encoding="utf-8-sig"))
     except FileNotFoundError:
         # A first --list should explain where to create the inventory.
-        if not override and not env.get("AIRONET_INVENTORY"):
+        if not override and not env.get("AIR_TOOLKIT_INVENTORY"):
             return {}, path
         message = f"inventory file not found: {path}"
         raise UsageError(message) from None

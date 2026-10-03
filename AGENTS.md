@@ -32,7 +32,7 @@ Go のビルドには Defender の誤検知を避ける `-ldflags="-s -w"` を�
 
 配布はリポジトリ全体のクローンと `uv tool install -e <clone>` を組み合わせ、skill は
 PATH の `air-ssh` を呼ぶ。skill ディレクトリだけの導入で CLI も入るとは案内しない。
-共通のクローン先は `~/.agents/skills/aironet`。インベントリと資料は `~/.aironet/` に置く。
+共通のクローン先は `~/.agents/skills/air-toolkit`。インベントリと資料は `~/.air-toolkit/` に置く。
 
 ## 層の規則
 
@@ -44,8 +44,8 @@ PATH の `air-ssh` を呼ぶ。skill ディレクトリだけの導入で CLI �
 
 Python の `src/air_ssh/` も同じ依存方向にする。`domain` はファイル・環境変数・SSH を直接読まず、
 渡された値だけを扱う。`cli` は `application` の公開 API だけを呼ぶ。
-接続情報は `--inventory` → `$AIRONET_INVENTORY` → `~/.aironet/devices.json` から読み、
-機器は `--device` / `$AIRONET_DEVICE` で明示する。
+接続情報は `--inventory` → `$AIR_TOOLKIT_INVENTORY` → `~/.air-toolkit/devices.json` から読み、
+機器は `--device` / `$AIR_TOOLKIT_DEVICE` で明示する。
 
 依存方向は Python の `pyproject.toml` (Import Linter) と Go の `.golangci.yml` (depguard) で
 検査する。CLI から `domain` / `infrastructure` への直接 import と逆方向の依存を禁止し、
@@ -73,7 +73,7 @@ Claude Code と Codex 等、SKILL.md を読むエージェントで同じよう�
 
 ## 変換結果の契約
 
-`<manuals>/<train>/<book>/` (`$AIRONET_MANUALS` → `~/.aironet/manuals/`) に
+`<manuals>/<train>/<book>/` (`$AIR_TOOLKIT_MANUALS` → `~/.air-toolkit/manuals/`) に
 
 - `<章>/<トピック>.md` — 本文。章 (元の 1 ページ) をディレクトリにし、章直下のトピック (コマンド 1 つ、
   設定ガイドの 1 機能) を 1 ファイルにする。`domain.MaxPartBytes` (32 KB) を超えるトピックは子トピックを
@@ -99,7 +99,7 @@ skill 側はこの契約を前提に読む。片方を変えたらもう片方�
 決まるまで `domain.LinkRef` の目印にし、全章を分けてから `domain.ResolveLinks` で相対パスにする。
 書き出しは冊子の置き場 `<manuals>/<train>/<book>/` を丸ごと消してから行う (`ResetBookDir`。前回の構成が
 残らないように)。README.md の無い非空ディレクトリだけは消さずに止めるが、それ以上の保護は無いので、
-`-manuals` / `$AIRONET_MANUALS` に他の物が入ったディレクトリを指さない。
+`-manuals` / `$AIR_TOOLKIT_MANUALS` に他の物が入ったディレクトリを指さない。
 
 章内目次 (`div#chapterToc`、1 ページ資料は Contents) の全アンカーが変換結果の見出しに現れることを
 build 中に強制している。落ちたら変換器がトピックを読み飛ばしているので、検証を緩めずに変換器を直す。
@@ -107,6 +107,6 @@ build 中に強制している。落ちたら変換器がトピックを読み�
 
 ## リポジトリに入れないもの
 
-- 機器の資格情報とインベントリ (`~/.aironet/devices.json`)。
+- 機器の資格情報とインベントリ (`~/.air-toolkit/devices.json`)。
 - マニュアル本文・変換結果・図・取得キャッシュ (`cache/`)。Cisco の著作物で、各自の手元で取得・変換する。
 - 変換器のテストに本物の章 HTML を置かない。構造を写した断片 (`dita_test.go`) で足りる。

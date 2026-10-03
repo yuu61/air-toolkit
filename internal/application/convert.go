@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/yuu61/aironet/internal/domain"
-	"github.com/yuu61/aironet/internal/infrastructure"
+	"github.com/yuu61/air-toolkit/internal/domain"
+	"github.com/yuu61/air-toolkit/internal/infrastructure"
 )
 
 // convertBook は取得済みの 1 冊を <manuals>/<train>/<book>/ に変換する。

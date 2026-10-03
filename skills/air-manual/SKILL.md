@@ -3,7 +3,7 @@ name: air-manual
 description: Cisco AireOS WLC / Mobility Express / Aironet AP の変換済みマニュアルから、コマンド構文、設定手順、制約、対応機種、トレイン間の違いを調べる。仕様確認や設定案の検証に使う。機器には接続しない。
 ---
 
-# Aironet マニュアル参照
+# air-manual によるマニュアル参照
 
 `manualbook` で変換したローカル資料を読み、根拠を付けて答える。
 この参照作業では機器に接続せず、設定も変更しない。
@@ -27,7 +27,7 @@ IOS XE の Catalyst 9800 用資料として扱わない。
 
 ## 資料の場所と冊子を選ぶ
 
-環境変数 `AIRONET_MANUALS` が設定されていればそのパス、未設定なら `~/.aironet/manuals/`
+環境変数 `AIR_TOOLKIT_MANUALS` が設定されていればそのパス、未設定なら `~/.air-toolkit/manuals/`
 を `<manuals>` とする。指定先が無い場合も別のルートへ黙って切り替えない。
 資料は `<manuals>/<train>/<book>/` にあり、冊子の `README.md` でタイトル、版、
 出典、取得日、対象機種、章一覧を確認する。
@@ -48,7 +48,7 @@ Mobility Express 8.5 に独立した `me-cr` はない。User Guide の Controll
 `ap-cr` は AP 自身の CLI。WLC や Mobility Express のコントローラー CLI と区別する。
 
 必要な資料が無ければ、不足するトレイン・冊子と探した場所を伝える。
-生成方法は aironet の README にある `manualbook build` を案内する。
+生成方法は air-toolkit の README にある `manualbook build` を案内する。
 参照の依頼だけで取得や再変換を始めない。再変換は冊子のディレクトリを削除して作り直す。
 手元で確認できた範囲を答え、不足部分を記憶で補わない。
 

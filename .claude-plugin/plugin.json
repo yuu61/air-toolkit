@@ -1,11 +1,11 @@
 {
-  "name": "aironet",
+  "name": "air-toolkit",
   "description": "AireOS を Claude Code から運用する skill 一式",
   "version": "0.1.0",
   "author": {
     "name": "yuu61"
   },
-  "homepage": "https://github.com/yuu61/aironet",
-  "repository": "https://github.com/yuu61/aironet",
+  "homepage": "https://github.com/yuu61/air-toolkit",
+  "repository": "https://github.com/yuu61/air-toolkit",
   "license": "MIT"
 }

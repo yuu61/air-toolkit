@@ -1,5 +1,5 @@
 [project]
-name = "aironet"
+name = "air-toolkit"
 version = "0.1.0"
 description = "Cisco AireOS WLC / Mobility Express / Aironet AP SSH helper"
 readme = "README.md"
@@ -12,8 +12,8 @@ dependencies = ["netmiko>=4.7"]
 dev = ["ruff>=0.16.7,<0.17", "import-linter>=2.15,<3"]
 
 [project.urls]
-Homepage = "https://github.com/yuu61/aironet"
-Repository = "https://github.com/yuu61/aironet"
+Homepage = "https://github.com/yuu61/air-toolkit"
+Repository = "https://github.com/yuu61/air-toolkit"
 
 # Skills call the installed command from PATH; clone the whole repository.
 
