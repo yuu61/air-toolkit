@@ -1,72 +1,70 @@
 # SSH 操作ガイド
 
-`air-ssh` の導入は [README](../README.md#インストール) を参照してください。
-例の機器名・WLAN ID・設定値は、実際の対象と変更内容に置き換えます。
+Cisco AireOS WLC / Mobility Express および Aironet AP (Wave 2 / Catalyst Wi-Fi 6) に対する `air-ssh` の設定・操作ガイドです。
+導入手順は [README](../README.md#インストール) を参照してください。
 
 ## インベントリと認証情報
 
-インベントリは UTF-8 の JSON です（UTF-8 BOM も読み込めます）。
-参照先の選択順は `--inventory PATH` → `AIR_TOOLKIT_INVENTORY` → `~/.air-toolkit/devices.json`。
-`air-ssh --list` は接続せず、参照先と機器名・ホスト・ユーザー名・種別を表示し、パスワードは表示しません。
-既定のファイルがまだ無ければ作成先を表示します。明示したファイルが無い場合はエラーです。
+インベントリファイル（UTF-8 JSON）で接続先機器を定義します。
 
-```console
-air-ssh --inventory "<path>/devices.json" --list
-air-ssh --inventory "<path>/devices.json" --device wlc "show sysinfo"
-```
+### 参照優先順位
+1. `--inventory PATH`
+2. 環境変数 `AIR_TOOLKIT_INVENTORY`
+3. `~/.air-toolkit/devices.json`
 
-`devices` で包む形式と、`{ "wlc": { ... }, "ap1": { ... } }` の形式を使えます。
-機器名が `_` で始まる項目はコメントとして無視します。
+### 設定項目
+| キー | 説明 | 既定値・別名 |
+| --- | --- | --- |
+| `host` | 接続先 IP / ホスト名、または `~/.ssh/config` エイリアス | `hostname`, `address`, `ip` |
+| `username` | ログインユーザー名 | `user` |
+| `port` | SSH ポート番号 (1〜65535) | SSH config `Port` → 22 |
+| `kind` | 機器種別: `wlc` (既定), `me` (コントローラー), `ap` (AP 単体) | `wlc` |
+| `password` | ログインパスワード | - |
+| `password_env` | パスワードを取得する環境変数名 | - |
+| `enable_password` | AP の enable パスワード (kind: ap のみ) | `enable_secret` |
+| `enable_password_env` | enable パスワードを取得する環境変数名 | - |
 
-| 項目 | 内容 |
-| --- | --- |
-| `host` | 接続先のアドレス、または `~/.ssh/config` のエイリアス。別名キーは `hostname` / `address` / `ip` |
-| `username` | ログインユーザー。`user` も可 |
-| `port` | SSH ポート。未指定なら SSH config の `Port` → 22。範囲は 1〜65535。数字の文字列も可 |
-| `kind` | `wlc`（既定）/ `me` / `ap`。`me` は `wlc` と同じコントローラー CLI |
-| `password` | ログインパスワード |
-| `password_env` | ログインパスワードを読む環境変数の名前 |
-| `enable_password` | AP の enable パスワード。`enable_secret` も可 |
-| `enable_password_env` | AP の enable パスワードを読む環境変数の名前 |
+### 資格情報の解決順
+- **ログインパスワード**: `password` → `password_env` の環境変数 → 環境変数 `WLC_PASS`
+- **AP enable パスワード**: `enable_password` / `enable_secret` → `enable_password_env` の環境変数 → ログインパスワード
 
-ログインパスワードは `password` → `password_env` が指す環境変数 → `WLC_PASS` の順です。
-AP の enable パスワードは `enable_password` / `enable_secret` →
-`enable_password_env` が指す環境変数 → ログインパスワードの順です。
-必要な資格情報が無い場合は接続前にエラーになります。
-
-パスワードをファイルに置かず、環境変数から読む定義の例です。
-起動元のターミナルやエージェントに環境変数を設定してください。秘密値を会話やリポジトリに書きません。
-
+### 設定例 (`devices.json`)
 ```json
 {
   "devices": {
     "wlc": {
       "host": "192.0.2.1",
-      "username": "operator",
+      "username": "admin",
       "password_env": "LAB_WLC_PASS"
+    },
+    "ap1": {
+      "kind": "ap",
+      "host": "192.0.2.17",
+      "username": "admin",
+      "password_env": "LAB_AP_PASS",
+      "enable_password_env": "LAB_AP_ENABLE_PASS"
     }
   }
 }
 ```
 
-機器は `--device NAME`（`-d`）→ `AIR_TOOLKIT_DEVICE` の順で決めます。未指定ならエラーです。
-インベントリは本人だけが読み書きできる権限にします。POSIX では `chmod 600`、
-Windows ではファイルのセキュリティ設定でアクセス権を制限します。CLI はファイル権限を検査しません。
+- `devices` キーを省略した `{ "wlc": { ... } }` 形式も利用可能です。
+- キー名が `_` で始まる項目はコメントとして無視されます。
+- 対象機器は `--device NAME` (`-d`) または環境変数 `AIR_TOOLKIT_DEVICE` で指定します。
+- `air-ssh --list` でインベントリの登録機器（パスワード非表示）を確認できます。
 
 ## SSH config と ProxyJump
 
-`host` に `~/.ssh/config` のエイリアスを書けば、`HostName` と `ProxyJump` を自動で解決します。
-`Include` や `Host` のワイルドカードも OpenSSH が解釈します。SSH config がある場合は、
-OpenSSH の `ssh` を PATH に置いてください。config が無ければ従来どおり直接接続します。
-`--list` は SSH config を読まず、インベントリの値を表示します。
+`host` に `~/.ssh/config` のホストエイリアスを指定することで、OpenSSH の設定を経由した接続が可能です。
 
-接続先の `username` とパスワードはインベントリ・環境変数から解決します。
-インベントリの `port` は SSH config の `Port` より優先し、明示した `22` もそのまま使います。
-踏み台の `User`、`Port`、`IdentityFile` と SSH agent は OpenSSH の設定を使います。
-踏み台は鍵または agent で認証し、パスワードや鍵のパスフレーズの入力待ちは行いません。
-踏み台のホスト鍵は通常の OpenSSH の設定に従って検証します。未知の鍵で確認が必要なら、
-事前に通常の `ssh` で接続して確認してください。
+### 主な動作仕様
+- **設定の継承**: `HostName`, `Port`, `ProxyJump` を自動解決します。多段ジャンプ（例: `ProxyJump host1,host2`）にも対応します（最大32段、循環検知）。
+- **踏み台の認証**: OpenSSH の鍵認証および SSH agent を利用します（対話入力は非対応）。
+- **制約**: `ProxyCommand` が有効なホストは未対応です（エラーコード 1 で終了。`ProxyCommand none` は許容）。
+- **優先順位**: ポート番号はインベントリの `port` が SSH config の `Port` より優先されます。
 
+### 設定例
+`~/.ssh/config`:
 ```sshconfig
 Host bastion
     HostName 192.0.2.10
@@ -79,6 +77,7 @@ Host lab-wlc
     ProxyJump bastion
 ```
 
+`devices.json`:
 ```json
 {
   "devices": {
@@ -91,82 +90,68 @@ Host lab-wlc
 }
 ```
 
-この例は `air-ssh --device wlc "show sysinfo"` で、踏み台を経由して `192.0.2.1:2222` へ接続します。
-`ProxyJump first,second` の複数段や、最初の踏み台に設定された `ProxyJump` もたどります。
-循環する経路と 32 台を超える踏み台はエラーです。
-接続先または経路上の踏み台に有効な `ProxyCommand` があれば、接続を始めず終了コード `1` で止まります。
-`ProxyCommand none` は無効化の指定として受け付けます。
+## コマンドの実行
 
-## コマンドの渡し方
-
-1 コマンドを 1 つの引用符付き引数として渡します。複数コマンドは順に実行します。
-空のコマンド、改行を含むコマンド、`config` / `show` などのモード語だけのコマンド、
-`logout` / `exit`、`config prompt` は接続前に拒否します。
+コマンドは引数ごとに 1 つずつ引用符で囲んで指定します。
 
 ```console
+# コントローラーでの確認
+air-ssh --device wlc "show sysinfo"
 air-ssh --device wlc "show ap summary" "show client summary"
+
+# AP 単体での確認 (kind: ap)
 air-ssh --device ap1 "show version" "show capwap client rcb"
 ```
 
-`kind: ap` は Wave 2 / Catalyst Wi-Fi 6 AP 自身の CLI です。ログイン後に `enable` で
-Privileged EXEC（`#`）へ入り、netmiko が `terminal length 0` を設定します。
-AP の構文は `8-10/ap-cr`、コントローラーの構文は対象トレインの `cr` / `me-cr` 等で確認します。
-`--cycle-wlan` / `--save` は AP 相手では接続前にエラーになります。
+### 実行仕様と制限
+- **禁止コマンド**: 空行、改行を含むコマンド、モード語単体（`config`, `show` など）、`logout`, `exit`, `config prompt` は接続前に拒否されます。
+- **コントローラー (`wlc` / `me`)**:
+  - 接続時に `config paging enable` を自動送信してページ送りを有効化します。
+  - プロンプト自動応答: 行末の `(y/n)` 確認に `y`、Enter 待ちに Enter、`--More--` に Space を返します。
+- **AP (`ap`)**:
+  - Wave 2 / Catalyst Wi-Fi 6 AP 単体の CLI です。ログイン後に `enable` で Privileged EXEC (`#`) に入り、`terminal length 0` を送信します。
+  - プロンプトの自動応答は行いません。
+  - `--cycle-wlan` および `--save` は使用できません（接続前にエラー）。
 
-コントローラーでは大量出力による切断を避けるため、接続後に `config paging enable` を送ります。
-read-write 権限が必要なので、read-only ユーザーで拒否された場合は警告して続行します。
-対応する行末の `(y/n)` 確認には `y`、Enter 待ちには Enter、`--More--` には Space を自動で返します。
-同じ行に警告文が付く確認にも応答しますが、点線リーダーを含む show 出力には答えません。
-AP では確認プロンプトに自動応答しません。
+## WLAN サイクルと設定保存
 
-CLI は入力コマンドと出力を逐次表示します。設定値や show の本文に含まれる秘密値を自動で伏せる機能は
-ないため、認証情報を含むコマンドや出力の共有では該当箇所を伏せてください。
-
-## WLAN サイクルと保存
-
-`--cycle-wlan ID` は 1〜512 を受け付けます。コマンドとサイクルの引数順が実行順になります。
+### WLAN サイクル (`--cycle-wlan ID`)
+コントローラーで設定変更時に WLAN の一時停止が必要な場合、変更コマンドの直前に指定します（ID: 1〜512）。
 
 ```console
-air-ssh --device wlc --cycle-wlan 1 "config wlan max-associated-clients 50 1" --cycle-wlan 2 "config wlan max-associated-clients 30 2"
+air-ssh --device wlc --cycle-wlan 1 "config wlan max-associated-clients 50 1"
 ```
 
-この例では WLAN 1 を操作し、元の状態へ戻して確認した後に WLAN 2 の操作へ進みます。
-各サイクルでは `show wlan ID` で存在と元の状態を確認し、有効だった WLAN を無効にしてから
-後続コマンドを実行します。次のサイクルの直前または処理の最後に元の状態へ戻して確認します。
-元から無効だった WLAN は無効のまま保ちます。失敗時も接続が使える範囲で復旧を試みます。
-投入済みの設定値を元に戻す処理はありません。
+1. 対象 WLAN の存在と有効/無効状態を `show wlan <ID>` で確認。
+2. 有効な場合は `config wlan disable <ID>` を実行して無効化を確認。
+3. 指定した変更コマンドを実行。
+4. 元の状態へ復旧し、表示コマンドで復元を確認。
 
-変更後は表示コマンドで設定値と WLAN の状態を確認し、保存する場合は次を実行します。
+※ 元から無効だった WLAN は無効のまま維持されます。
+※ コマンドとサイクルの指定順序通りに順次実行されます。
+
+### 設定の保存 (`--save`)
+コントローラーで `save config` を実行し、設定を永続化します。
 
 ```console
+# 設定変更・確認後に保存
 air-ssh --device wlc "show wlan 1"
 air-ssh --device wlc --save
-```
 
-`--save` は `save config` を送り、確認に応答し、`Configuration Saved!` とプロンプト復帰を
-確認します。変更と同時に付ける場合は、全 WLAN の復旧確認後に保存します。
-
-```console
+# WLAN サイクルと同時に指定（復旧確認後に自動保存）
 air-ssh --device wlc --cycle-wlan 1 "config wlan max-associated-clients 50 1" --save
 ```
 
-この形では設定値を別の表示コマンドで検証する前に保存します。確認後に保存したい場合は別実行にします。
+## エラーハンドリングと終了コード
 
-## エラーと復旧
+### 異常終了と復旧動作
+- **エラー検出**: 既知のエラーメッセージ（AP の `% Invalid input detected` 等）や状態確認失敗時に処理を停止し、後続コマンドや `--save` はスキップします。
+- **タイムアウト**: 120 秒間出力がない場合、`--More--` 待ちなら `q`、それ以外は Ctrl-Z でプロンプト復帰を試みます。復帰できた場合のみ WLAN の復旧を試行します。
 
-既知の機器側エラー、WLAN の状態確認の失敗、120 秒の無出力で処理を止めます。
-120 秒はコマンド全体の所要時間ではなく、出力が途絶えている時間です。
-AP の拒否は `% Incomplete command.` / `% Ambiguous command` / `% Invalid input detected` で判定します。
-未知のエラー表現や設定値の誤りまで網羅するものではないので、成功後も表示コマンドで確認してください。
-
-失敗時は後続コマンドと保存を実行しません。タイムアウトでは `--More--` 待ちなら `q`、
-それ以外は Ctrl-Z でプロンプトへの復帰を試みます。戻れば WLAN の復旧を行い、戻れなければ
-同じ接続に追加コマンドを送りません。切断などで復旧できない場合はエラーに復旧失敗も表示します。
-再接続して適用状況と WLAN の状態を確認し、バッチ全体を無条件に再実行しないでください。
-
-| 終了コード | 意味 |
+### 終了コード一覧
+| 終了コード | 状態 |
 | --- | --- |
-| `0` | 処理成功（`--list` / `--help` を含む） |
-| `1` | 対象・認証情報・コマンドの検証、SSH 操作、状態確認、保存などの失敗 |
-| `2` | argparse が検出した引数の誤り（必須の値の不足など） |
+| `0` | 正常終了（`--list`, `--help` を含む） |
+| `1` | 実行時エラー（接続失敗、認証失敗、コマンドエラー、状態確認失敗など） |
+| `2` | コマンドライン引数エラー（必須オプション不足など） |
 | `130` | Ctrl-C による中断 |

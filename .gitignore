@@ -24,6 +24,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+uv.lock
 
 # --- 機器の資格情報 ---
 devices.json
