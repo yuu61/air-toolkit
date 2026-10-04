@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 MAX_SSH_PORT = 65535
+DEFAULT_SSH_PORT = 22
 
 # "wlc": AireOS WLC / Mobility Express controller CLI ("me" is accepted as an alias).
 # "ap": a Wave 2 / Catalyst Wi-Fi 6 AP's own CLI (user EXEC ">" then privileged EXEC "#").
@@ -29,9 +30,10 @@ class Target:
     host: str
     username: str
     password: str = field(repr=False)
-    port: int = 22
+    port: int = DEFAULT_SSH_PORT
     kind: str = "wlc"
     enable_password: str | None = field(default=None, repr=False)
+    port_explicit: bool = field(default=False, kw_only=True)
 
     @property
     def is_ap(self) -> bool:
@@ -75,7 +77,7 @@ def resolve_target(name: str, entry: Mapping[str, object], env: Mapping[str, str
     if not username or not username.strip():
         message = f"no username for {name!r}; add username to devices.json"
         raise UsageError(message)
-    port = entry.get("port", 22)
+    port = entry.get("port", DEFAULT_SSH_PORT)
     if isinstance(port, str) and port.isascii() and port.isdecimal():
         port = int(port)
     if type(port) is not int or not 1 <= port <= MAX_SSH_PORT:
@@ -84,4 +86,4 @@ def resolve_target(name: str, entry: Mapping[str, object], env: Mapping[str, str
     kind = resolve_kind(entry, name)
     password = resolve_password(entry, env)
     enable = resolve_enable_password(entry, env, password) if kind == "ap" else None
-    return Target(name, host, username, password, port, kind, enable)
+    return Target(name, host, username, password, port, kind, enable, port_explicit="port" in entry)

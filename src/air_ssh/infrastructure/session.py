@@ -7,9 +7,12 @@ from __future__ import annotations
 import re
 import sys
 import time
+from contextlib import ExitStack
 from typing import TYPE_CHECKING, TextIO
 
 from air_ssh.domain import OperationError, Target, UsageError
+from air_ssh.infrastructure.jump import JumpTunnel
+from air_ssh.infrastructure.ssh_config import resolve_route
 
 if TYPE_CHECKING:
     from netmiko import BaseConnection
@@ -77,12 +80,20 @@ class NetmikoSession:
     PROMPT_TAIL = r"\s*>"
     FALLBACK_PROMPT = PROMPT_RE
 
-    def __init__(self, conn: BaseConnection, out: TextIO, err: TextIO) -> None:
+    def __init__(
+        self,
+        conn: BaseConnection,
+        out: TextIO,
+        err: TextIO,
+        *,
+        resources: ExitStack | None = None,
+    ) -> None:
         """Bind the connection, output streams, and device-specific root prompt."""
         self._conn = conn
         self._out = out
         self._err = err
         self._ready = True
+        self._resources = resources if resources is not None else ExitStack()
         base_prompt = getattr(conn, "base_prompt", None)
         self._prompt = (
             re.compile(re.escape(base_prompt.strip()) + self.PROMPT_TAIL)
@@ -239,11 +250,14 @@ class NetmikoSession:
 
     def close(self) -> None:
         """Close the transport first when a pending command makes logout unsafe."""
-        if not self._ready:
-            # Close the transport first so Netmiko's logout/paging cleanup cannot
-            # send CLI commands into a pending confirmation or unfinished command.
-            self._conn.paramiko_cleanup()
-        self._conn.disconnect()
+        try:
+            if not self._ready:
+                # Close the transport first so Netmiko's logout/paging cleanup cannot
+                # send CLI commands into a pending confirmation or unfinished command.
+                self._conn.paramiko_cleanup()
+            self._conn.disconnect()
+        finally:
+            self._resources.close()
 
 
 class ApSession(NetmikoSession):
@@ -301,12 +315,14 @@ def open_session(target: Target, out: TextIO, err: TextIO) -> NetmikoSession:
     try:
         from netmiko import ConnectHandler
         from netmiko.exceptions import NetmikoAuthenticationException, NetmikoTimeoutException
+        from paramiko.ssh_exception import SSHException
     except ImportError:
         message = f"netmiko is not installed for {sys.executable}; run uv sync"
         raise UsageError(message) from None
+    route = resolve_route(target)
     options = {
-        "host": target.host,
-        "port": target.port,
+        "host": route.host,
+        "port": route.port,
         "username": target.username,
         "password": target.password,
         "fast_cli": False,
@@ -315,24 +331,38 @@ def open_session(target: Target, out: TextIO, err: TextIO) -> NetmikoSession:
         options |= {"device_type": "cisco_ios", "secret": target.enable_password}
     else:
         options["device_type"] = "cisco_wlc_ssh"
-    try:
-        conn = ConnectHandler(**options)
-    except (NetmikoAuthenticationException, NetmikoTimeoutException, OSError) as exc:
-        message = f"SSH connection to {target.name!r} failed ({type(exc).__name__})"
-        raise OperationError(message) from None
-    session = ApSession(conn, out, err) if target.is_ap else NetmikoSession(conn, out, err)
-    try:
-        if target.is_ap:
-            _enter_privileged_exec(conn, target, NetmikoTimeoutException)
-        else:
-            _enable_paging(session, err)
-    except BaseException:
+    with ExitStack() as resources:
+        if route.jumps:
+            tunnel = JumpTunnel(route)
+            resources.callback(tunnel.close)
+            options["sock"] = tunnel.sock
         try:
-            session.close()
-        except Exception as exc:
-            print(f"[WARN] disconnect after initialization failure failed: {exc}", file=err)
-        raise
-    return session
+            conn = ConnectHandler(**options)
+        except (
+            NetmikoAuthenticationException,
+            NetmikoTimeoutException,
+            SSHException,
+            OSError,
+            EOFError,
+        ) as exc:
+            message = f"SSH connection to {target.name!r} failed ({type(exc).__name__})"
+            if route.jumps:
+                message += "; check ProxyJump authentication and known_hosts"
+            raise OperationError(message) from None
+        session_type = ApSession if target.is_ap else NetmikoSession
+        session = session_type(conn, out, err, resources=resources.pop_all())
+        try:
+            if target.is_ap:
+                _enter_privileged_exec(conn, target, NetmikoTimeoutException)
+            else:
+                _enable_paging(session, err)
+        except BaseException:
+            try:
+                session.close()
+            except Exception as exc:
+                print(f"[WARN] disconnect after initialization failure failed: {exc}", file=err)
+            raise
+        return session
 
 
 def _enter_privileged_exec(

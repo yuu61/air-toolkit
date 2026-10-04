@@ -20,9 +20,9 @@ air-ssh --inventory "<path>/devices.json" --device wlc "show sysinfo"
 
 | 項目 | 内容 |
 | --- | --- |
-| `host` | 接続先。別名キーは `hostname` / `address` / `ip` |
+| `host` | 接続先のアドレス、または `~/.ssh/config` のエイリアス。別名キーは `hostname` / `address` / `ip` |
 | `username` | ログインユーザー。`user` も可 |
-| `port` | SSH ポート。既定は 22、範囲は 1〜65535。数字の文字列も可 |
+| `port` | SSH ポート。未指定なら SSH config の `Port` → 22。範囲は 1〜65535。数字の文字列も可 |
 | `kind` | `wlc`（既定）/ `me` / `ap`。`me` は `wlc` と同じコントローラー CLI |
 | `password` | ログインパスワード |
 | `password_env` | ログインパスワードを読む環境変数の名前 |
@@ -52,6 +52,50 @@ AP の enable パスワードは `enable_password` / `enable_secret` →
 機器は `--device NAME`（`-d`）→ `AIR_TOOLKIT_DEVICE` の順で決めます。未指定ならエラーです。
 インベントリは本人だけが読み書きできる権限にします。POSIX では `chmod 600`、
 Windows ではファイルのセキュリティ設定でアクセス権を制限します。CLI はファイル権限を検査しません。
+
+## SSH config と ProxyJump
+
+`host` に `~/.ssh/config` のエイリアスを書けば、`HostName` と `ProxyJump` を自動で解決します。
+`Include` や `Host` のワイルドカードも OpenSSH が解釈します。SSH config がある場合は、
+OpenSSH の `ssh` を PATH に置いてください。config が無ければ従来どおり直接接続します。
+`--list` は SSH config を読まず、インベントリの値を表示します。
+
+接続先の `username` とパスワードはインベントリ・環境変数から解決します。
+インベントリの `port` は SSH config の `Port` より優先し、明示した `22` もそのまま使います。
+踏み台の `User`、`Port`、`IdentityFile` と SSH agent は OpenSSH の設定を使います。
+踏み台は鍵または agent で認証し、パスワードや鍵のパスフレーズの入力待ちは行いません。
+踏み台のホスト鍵は通常の OpenSSH の設定に従って検証します。未知の鍵で確認が必要なら、
+事前に通常の `ssh` で接続して確認してください。
+
+```sshconfig
+Host bastion
+    HostName 192.0.2.10
+    User operator
+    IdentityFile ~/.ssh/id_ed25519
+
+Host lab-wlc
+    HostName 192.0.2.1
+    Port 2222
+    ProxyJump bastion
+```
+
+```json
+{
+  "devices": {
+    "wlc": {
+      "host": "lab-wlc",
+      "username": "admin",
+      "password_env": "LAB_WLC_PASS"
+    }
+  }
+}
+```
+
+この例は `air-ssh --device wlc "show sysinfo"` で、踏み台を経由して `192.0.2.1:2222` へ接続します。
+`ProxyJump first,second` の複数段や、最初の踏み台に設定された `ProxyJump` もたどります。
+循環する経路と 32 台を超える踏み台はエラーです。
+接続先または経路上の踏み台に有効な `ProxyCommand` があれば、接続を始めず終了コード `1` で止まります。
+`ProxyCommand none` は無効化の指定として受け付けます。
 
 ## コマンドの渡し方
 

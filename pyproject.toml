@@ -87,6 +87,10 @@ ignore = [
 # Netmiko is loaded lazily so help and inventory listing work without SSH dependencies.
 # AP overrides keep the common session signatures even when arguments/self are unused.
 "src/air_ssh/infrastructure/session.py" = ["unused-method-argument", "blind-except", "import-outside-top-level", "no-self-use"]
+# OpenSSH is located on PATH and invoked with an argv list, shell=False, and --
+# before the alias. Config ProxyCommands are rejected before forwarding starts.
+"src/air_ssh/infrastructure/ssh_config.py" = ["suspicious-subprocess-import", "subprocess-without-shell-equals-true"]
+"src/air_ssh/infrastructure/jump.py" = ["suspicious-subprocess-import", "subprocess-without-shell-equals-true"]
 # Printing user-facing errors is the CLI's responsibility.
 "src/air_ssh/cli/runner.py" = ["print"]
 # unittest methods describe the cases in their names; assertions and exception checks

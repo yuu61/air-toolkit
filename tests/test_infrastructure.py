@@ -74,6 +74,13 @@ class Channel:
 class SessionTests(unittest.TestCase):
     """Exercise the controller prompt and streaming protocol."""
 
+    def setUp(self) -> None:
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        patcher = patch("pathlib.Path.home", return_value=Path(directory.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     def test_split_confirmation_and_pagination(self) -> None:
         channel = Channel(
@@ -493,6 +500,13 @@ class ApChannel(Channel):
 
 class ApSessionTests(unittest.TestCase):
     """Exercise privileged AP sessions and controller-only restrictions."""
+
+    def setUp(self) -> None:
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        patcher = patch("pathlib.Path.home", return_value=Path(directory.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     def test_privileged_prompt_ends_output_and_controller_prompt_does_not(self) -> None:

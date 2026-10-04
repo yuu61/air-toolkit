@@ -25,24 +25,6 @@ uv tool install -e "$HOME/.agents/skills/air-toolkit"
 依存パッケージが変わった場合は `uv tool install --reinstall -e "$HOME/.agents/skills/air-toolkit"`を再実行します。
 プラグインを読み込んだセッションは開き直してください。
 
-### 旧名 aironet からの移行
-
-旧版を uv tool で導入済みの場合は、`uv tool uninstall aironet` の後に上の導入手順で
-`air-toolkit` をインストールします。既存のクローンを使う場合は、リポジトリのルートで
-`git remote set-url origin https://github.com/yuu61/air-toolkit.git` を実行します。
-CLI の `air-ssh`、マニュアル変換の `manualbook`、skill の `air-ssh` / `air-manual` は同じ名前で使えます。
-
-| 設定 | 旧名 | 新名 |
-| --- | --- | --- |
-| 標準クローン先 | `~/.agents/skills/aironet` | `~/.agents/skills/air-toolkit` |
-| インベントリ・資料の標準保存先 | `~/.aironet/` | `~/.air-toolkit/` |
-| インベントリの指定 | `AIRONET_INVENTORY` | `AIR_TOOLKIT_INVENTORY` |
-| 機器の指定 | `AIRONET_DEVICE` | `AIR_TOOLKIT_DEVICE` |
-| 資料の指定 | `AIRONET_MANUALS` | `AIR_TOOLKIT_MANUALS` |
-
-既存の `devices.json` と `manuals/` は新しい保存先へ移すか、`AIR_TOOLKIT_INVENTORY` と
-`AIR_TOOLKIT_MANUALS` に現在のパスを指定して使います。環境変数を使っている場合は名前も更新してください。
-
 ### 接続先と基本操作
 
 `~/.air-toolkit/devices.json` に機器を定義します。以下のアドレスと資格情報は例です。
@@ -68,6 +50,10 @@ CLI の `air-ssh`、マニュアル変換の `manualbook`、skill の `air-ssh` 
 
 `air-ssh --list` インベントリの場所と機器名・ホスト・ユーザー名・種別を表示します。
 対象は `--device NAME`（短縮形 `-d`）または `AIR_TOOLKIT_DEVICE` で明示します。
+
+`host` には `~/.ssh/config` のエイリアスも指定できます。`HostName`、`Port`、`ProxyJump` を
+自動で解決し、踏み台は OpenSSH の鍵・agent で認証します。有効な `ProxyCommand` は接続前にエラーになります。
+設定例と優先順位は [SSH config と ProxyJump](docs/air-ssh.md#ssh-config-と-proxyjump) を参照してください。
 
 ```console
 air-ssh --device wlc "show sysinfo"
