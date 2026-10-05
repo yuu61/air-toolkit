@@ -102,6 +102,36 @@ class SessionTests(unittest.TestCase):
         self.assertIn("Proceed (y/n)", out.getvalue())
 
     @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_trailing_question_mark_help_sends_ctrl_c_without_newline(self) -> None:
+        channel = Channel(
+            [
+                "show run?\nrun-config     running-config\n(Cisco Controller) >show run",
+                "",
+                "\n(Cisco Controller) >",
+                "",
+                "",
+            ]
+        )
+        out = io.StringIO()
+        self.assertTrue(NetmikoSession(channel, out, io.StringIO()).run("show run?"))
+        self.assertEqual(channel.writes, ["show run?", "\x03"])
+        self.assertIn("run-config     running-config", out.getvalue())
+
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_trailing_question_mark_alone_does_not_need_ctrl_c(self) -> None:
+        channel = Channel(
+            [
+                "?\nshow      Show running system information\n(Cisco Controller) >",
+                "",
+                "",
+            ]
+        )
+        out = io.StringIO()
+        self.assertTrue(NetmikoSession(channel, out, io.StringIO()).run("?"))
+        self.assertEqual(channel.writes, ["?"])
+        self.assertIn("Show running system information", out.getvalue())
+
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     def test_prompt_before_echo_does_not_end_output(self) -> None:
         channel = Channel(
             ["(Cisco Controller) >", "", "show sysinfo\nresult\n", "(Cisco Controller) >", "", ""]
@@ -517,6 +547,22 @@ class ApSessionTests(unittest.TestCase):
         self.assertTrue(ApSession(channel, out, io.StringIO()).run("show version"))
         self.assertIn("8.10.185.0", out.getvalue())
         self.assertEqual(channel.writes, ["show version\n"])
+
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_ap_trailing_question_mark_help_sends_ctrl_c(self) -> None:
+        channel = ApChannel(
+            [
+                "show run?\nrunning-config\nap-153-4#show run",
+                "",
+                "\nap-153-4#",
+                "",
+                "",
+            ]
+        )
+        out = io.StringIO()
+        self.assertTrue(ApSession(channel, out, io.StringIO()).run("show run?"))
+        self.assertEqual(channel.writes, ["show run?", "\x03"])
+        self.assertIn("running-config", out.getvalue())
 
     @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     def test_documented_ap_errors_are_failures(self) -> None:

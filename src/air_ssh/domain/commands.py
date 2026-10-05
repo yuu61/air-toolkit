@@ -48,6 +48,17 @@ class Command:
                 "config prompt changes the prompt air-ssh waits for; run it from another session"
             )
             raise UsageError(message)
+        if "?" in shown and not shown.endswith("?"):
+            message = f"'{shown}' contains '?' mid-command; '?' is only supported at the end"
+            raise UsageError(message)
+        if shown.count("?") > 1:
+            message = f"'{shown}' contains multiple '?'; give a single '?' at the end"
+            raise UsageError(message)
+
+    @property
+    def is_help(self) -> bool:
+        """Whether this command queries interactive help or completions with trailing '?'."""
+        return self.text.strip().endswith("?")
 
 
 @dataclass(frozen=True)

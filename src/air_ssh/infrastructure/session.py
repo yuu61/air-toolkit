@@ -59,6 +59,8 @@ RECOVERY_TIMEOUT = 10
 # a "Press Enter to continue Or <Ctl Z> to abort" pause.
 QUIT_MORE = "q"
 CTRL_Z = "\x1a"
+# Ctrl-C cancels a pending command line after a trailing '?' interactive help query.
+CTRL_C = "\x03"
 
 
 def waiting_line(tail: str) -> str:
@@ -130,16 +132,32 @@ class NetmikoSession:
             return "y\n"
         return None
 
+    def _finish(self, command: str, chunks: list[str]) -> str:
+        self._ready = True
+        print(file=self._out)
+        output = ANSI_RE.sub("", "".join(chunks)).replace("\r", "\n")
+        # A bare command echo must not be mistaken for an error response.
+        clean_output = "\n".join(
+            row for row in output.splitlines() if row.strip() != command.strip()
+        )
+        if self._rejected(command, clean_output):
+            message = f"{self.DEVICE} rejected '{command}'"
+            raise OperationError(message)
+        return clean_output
+
     def _exchange(self, command: str, timeout: int = DEFAULT_TIMEOUT) -> str | None:
         if not self._ready:
             message = "SSH command state is unknown; reconnect before further commands"
             raise OperationError(message)
         print(f"===== {command} =====", file=self._out)
         self._ready = False
-        self._conn.write_channel(command + "\n")
+        is_help = command.strip().endswith("?")
+        payload = command.rstrip() if is_help else command + "\n"
+        self._conn.write_channel(payload)
         tail = ""
         chunks = []
         prompt_pending = False
+        help_canceled = False
         last_data = time.monotonic()
         while True:
             chunk = self._conn.read_channel()
@@ -161,18 +179,12 @@ class NetmikoSession:
             elif self._prompt.fullmatch(line):
                 # The prompt also precedes command echo: wait for two quiet reads.
                 if prompt_pending:
-                    self._ready = True
-                    print(file=self._out)
-                    output = ANSI_RE.sub("", "".join(chunks)).replace("\r", "\n")
-                    # A bare command echo must not be mistaken for an error response.
-                    output = "\n".join(
-                        row for row in output.splitlines() if row.strip() != command.strip()
-                    )
-                    if self._rejected(command, output):
-                        message = f"{self.DEVICE} rejected '{command}'"
-                        raise OperationError(message)
-                    return output
+                    return self._finish(command, chunks)
                 prompt_pending = True
+            elif is_help and not help_canceled and chunks:
+                self._conn.write_channel(CTRL_C)
+                help_canceled = True
+                prompt_pending = False
             elif time.monotonic() - last_data > timeout:
                 print(f"\n[WARN] no output for {timeout}s on '{command}'", file=self._err)
                 self._recover(command, line)

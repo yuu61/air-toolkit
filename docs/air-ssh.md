@@ -104,7 +104,8 @@ air-ssh --device ap1 "show version" "show capwap client rcb"
 ```
 
 ### 実行仕様と制限
-- **禁止コマンド**: 空行、改行を含むコマンド、モード語単体（`config`, `show` など）、`logout`, `exit`, `config prompt` は接続前に拒否されます。
+- **禁止コマンド**: 空行、改行を含むコマンド、モード語単体（`config`, `show` など）、`logout`, `exit`, `config prompt`、途中の `?` や複数個の `?` は接続前に拒否されます。
+- **対話補完・ヘルプ (`?`)**: コマンド末尾の単一の `?`（例: `"show run?"`, `"show ?"`）に対応しています。改行を送らずに候補を出力させ、Ctrl-C で安全に入力行を破棄してプロンプトへ復帰するため、手前のコマンドが誤実行されることはありません。
 - **コントローラー (`wlc` / `me`)**:
   - 接続時はページ送りを無効化（terminal length 0 / `config paging disable`）のまま維持します。
   - プロンプト自動応答: 行末の `(y/n)` 確認に `y`、Enter 待ちに Enter、`--More--` に Space を返します。

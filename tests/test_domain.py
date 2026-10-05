@@ -122,6 +122,19 @@ class InventoryTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(Command(text).text, text)
 
+    def test_interactive_help_validation(self) -> None:
+        # A single trailing ? is supported for completions/help without executing commands.
+        for text in ("show run?", "show ?", "?", "config ?", "show run? ", "show run ?"):
+            with self.subTest(text=text):
+                cmd = Command(text)
+                self.assertEqual(cmd.text, text)
+                self.assertTrue(cmd.is_help)
+        # Mid-command ? and multiple ? are rejected to prevent broken or accidental execution.
+        for text in ("show ? summary", "config wlan ssid 1 my?ssid", "show ??", "show ? ?", "??"):
+            with self.subTest(text=text), self.assertRaises(UsageError):
+                Command(text)
+        self.assertFalse(Command("show sysinfo").is_help)
+
     def test_wlan_id_cannot_inject_commands(self) -> None:
         for value in (
             "",

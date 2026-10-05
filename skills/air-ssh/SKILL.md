@@ -44,7 +44,8 @@ air-ssh --device wlc "show sysinfo"
 必要な表示コマンドを、1 コマンドにつき1つの引用符付き引数として渡す。
 コマンドは空でない1行にし、改行でまとめたり、シェルの区切り記号で連結したりしない。
 `config` / `show` などのモード語だけ (サブプロンプトに入る)、`logout` / `exit`、
-`config prompt` は CLI が接続前に拒否するので、完全なコマンドを渡す。
+`config prompt`、途中の `?` は CLI が接続前に拒否するので、完全なコマンドを渡す
+(末尾の単一の `?` による対話補完・ヘルプ確認には対応し、候補表示後に安全に復帰する)。
 
 ```console
 air-ssh --device wlc "show ap summary" "show client summary"
