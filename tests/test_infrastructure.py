@@ -401,7 +401,21 @@ class SessionTests(unittest.TestCase):
         self.assertIsInstance(session, NetmikoSession)
         connect.return_value.write_channel.assert_not_called()
         session.close()
-        connect.return_value.disconnect.assert_called_once()
+        self.assertEqual(
+            [call[0] for call in connect.return_value.mock_calls[-2:]],
+            ["paramiko_cleanup", "disconnect"],
+        )
+
+    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
+    def test_completed_session_closes_transport_before_disconnect(self) -> None:
+        conn = Mock()
+        conn.read_channel.side_effect = ["show sysinfo\nresult\n(Cisco Controller) >", "", ""]
+        session = NetmikoSession(conn, io.StringIO(), io.StringIO())
+        self.assertTrue(session.run("show sysinfo"))
+        session.close()
+        self.assertEqual(
+            [call[0] for call in conn.mock_calls[-2:]], ["paramiko_cleanup", "disconnect"]
+        )
 
     @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     def test_confirmation_with_warning_on_the_same_line_is_answered(self) -> None:

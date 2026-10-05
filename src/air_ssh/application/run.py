@@ -173,5 +173,5 @@ def run(
         try:
             session.close()
         except Exception as exc:
-            # Netmiko's paging reset can fail on an already-busy channel.
+            # Disconnecting can fail on an already-busy or broken channel.
             print(f"[WARN] disconnect failed: {exc}", file=err)

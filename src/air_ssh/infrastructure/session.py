@@ -249,11 +249,9 @@ class NetmikoSession:
         raise OperationError(message)
 
     def close(self) -> None:
-        """Close the transport first when a pending command makes logout unsafe."""
+        """Close the transport first so Netmiko does not run slow paging/logout cleanup."""
         try:
-            if not self._ready:
-                # Close the transport first so Netmiko's logout/paging cleanup cannot
-                # send CLI commands into a pending confirmation or unfinished command.
+            if hasattr(self._conn, "paramiko_cleanup"):
                 self._conn.paramiko_cleanup()
             self._conn.disconnect()
         finally:
