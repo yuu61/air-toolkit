@@ -200,7 +200,7 @@ class SessionTests(unittest.TestCase):
         )
         session.close()
         connect.return_value.disconnect.assert_called_once()
-        connect.return_value.write_channel.assert_called_once_with("config paging enable\n")
+        connect.return_value.write_channel.assert_not_called()
 
     @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     def test_controller_errors_are_failures_even_after_long_output(self) -> None:
@@ -391,37 +391,16 @@ class SessionTests(unittest.TestCase):
             [call[0] for call in conn.mock_calls[-2:]], ["paramiko_cleanup", "disconnect"]
         )
 
-    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
     @patch("netmiko.ConnectHandler")
-    def test_paging_rejected_for_read_only_user_warns_and_continues(self, connect: Mock) -> None:
-        # config paging requires read-write privileges; a read-only user can still
-        # run show commands, and Netmiko could not have disabled paging for them either.
-        connect.return_value.read_channel.side_effect = [
-            "Error: Permission denied\n(Cisco Controller) >",
-            "",
-            "",
-        ]
-        err = io.StringIO()
+    def test_controller_connection_keeps_paging_disabled_without_paging_commands(
+        self, connect: Mock
+    ) -> None:
         session = open_session(
-            Target("lab", "192.0.2.1", "operator", "test-secret"), io.StringIO(), err
+            Target("lab", "192.0.2.1", "operator", "test-secret"), io.StringIO(), io.StringIO()
         )
-        self.assertIn("refused 'config paging enable'", err.getvalue())
-        connect.return_value.disconnect.assert_not_called()
+        self.assertIsInstance(session, NetmikoSession)
+        connect.return_value.write_channel.assert_not_called()
         session.close()
-        connect.return_value.paramiko_cleanup.assert_not_called()
-        connect.return_value.disconnect.assert_called_once()
-
-    @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
-    @patch("netmiko.ConnectHandler")
-    def test_paging_setup_timeout_closes_connection(self, connect: Mock) -> None:
-        connect.return_value.read_channel.return_value = ""
-        with (
-            patch("air_ssh.infrastructure.session.time.monotonic", side_effect=[0, 121, 121, 132]),
-            self.assertRaises(OperationError),
-        ):
-            open_session(
-                Target("lab", "192.0.2.1", "operator", "test-secret"), io.StringIO(), io.StringIO()
-            )
         connect.return_value.disconnect.assert_called_once()
 
     @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)

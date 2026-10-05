@@ -304,7 +304,7 @@ def open_session(target: Target, out: TextIO, err: TextIO) -> NetmikoSession:
     """Connect and prepare a controller or privileged AP session.
 
     Returns:
-        The ready session, with controller paging or AP enable mode configured.
+        The ready session, with terminal length 0 or AP enable mode configured.
 
     Raises:
         UsageError: Netmiko is unavailable in the current interpreter.
@@ -354,8 +354,6 @@ def open_session(target: Target, out: TextIO, err: TextIO) -> NetmikoSession:
         try:
             if target.is_ap:
                 _enter_privileged_exec(conn, target, NetmikoTimeoutException)
-            else:
-                _enable_paging(session, err)
         except BaseException:
             try:
                 session.close()
@@ -375,24 +373,3 @@ def _enter_privileged_exec(
     except (ValueError, timeout_error, OSError):
         message = f"could not enter privileged EXEC on {target.name!r}; check enable_password"
         raise OperationError(message) from None
-
-
-def _enable_paging(session: NetmikoSession, err: TextIO) -> None:
-    # Netmiko disables paging during login. Cisco warns that large unpaged
-    # output can terminate the session; handle MORE explicitly instead.
-    try:
-        enabled = session.run("config paging enable")
-    except OperationError:
-        # config paging needs read-write privileges. For a read-only user Netmiko's
-        # "config paging disable" was refused the same way, so paging is still on
-        # and MORE handling suffices; the warning covers the remaining case.
-        print(
-            "[WARN] controller refused 'config paging enable' (read-write privileges "
-            "required); continuing. If this account is read-write, paging is off and "
-            "a very long output may end the session.",
-            file=err,
-        )
-        return
-    if not enabled:
-        message = "could not enable CLI paging"
-        raise OperationError(message)

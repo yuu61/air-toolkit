@@ -106,10 +106,10 @@ air-ssh --device ap1 "show version" "show capwap client rcb"
 ### 実行仕様と制限
 - **禁止コマンド**: 空行、改行を含むコマンド、モード語単体（`config`, `show` など）、`logout`, `exit`, `config prompt` は接続前に拒否されます。
 - **コントローラー (`wlc` / `me`)**:
-  - 接続時に `config paging enable` を自動送信してページ送りを有効化します。
+  - 接続時はページ送りを無効化（terminal length 0 / `config paging disable`）のまま維持します。
   - プロンプト自動応答: 行末の `(y/n)` 確認に `y`、Enter 待ちに Enter、`--More--` に Space を返します。
 - **AP (`ap`)**:
-  - Wave 2 / Catalyst Wi-Fi 6 AP 単体の CLI です。ログイン後に `enable` で Privileged EXEC (`#`) に入り、`terminal length 0` を送信します。
+  - Wave 2 / Catalyst Wi-Fi 6 AP 単体の CLI です。ログイン後に `enable` で Privileged EXEC (`#`) に入り、`terminal length 0` でページ送りを無効化します。
   - プロンプトの自動応答は行いません。
   - `--cycle-wlan` および `--save` は使用できません（接続前にエラー）。
 
