@@ -135,6 +135,8 @@ class NetmikoSession:
     def _finish(self, command: str, chunks: list[str]) -> str:
         self._ready = True
         print(file=self._out)
+        if command.strip().endswith("?"):
+            self._conn.write_channel(CTRL_C)
         output = ANSI_RE.sub("", "".join(chunks)).replace("\r", "\n")
         # A bare command echo must not be mistaken for an error response.
         clean_output = "\n".join(
@@ -144,6 +146,16 @@ class NetmikoSession:
             message = f"{self.DEVICE} rejected '{command}'"
             raise OperationError(message)
         return clean_output
+
+    def _prompt_matches(self, line: str, command: str) -> bool:
+        if self._prompt.fullmatch(line):
+            return True
+        if command.strip().endswith("?"):
+            match = self._prompt.match(line)
+            if match is not None:
+                expected = command.rstrip()[:-1].strip()
+                return line[match.end() :].strip() == expected
+        return False
 
     def _exchange(self, command: str, timeout: int = DEFAULT_TIMEOUT) -> str | None:
         if not self._ready:
@@ -157,7 +169,6 @@ class NetmikoSession:
         tail = ""
         chunks = []
         prompt_pending = False
-        help_canceled = False
         last_data = time.monotonic()
         while True:
             chunk = self._conn.read_channel()
@@ -176,15 +187,11 @@ class NetmikoSession:
                 self._conn.write_channel(response)
                 tail = ""
                 prompt_pending = False
-            elif self._prompt.fullmatch(line):
+            elif self._prompt_matches(line, command):
                 # The prompt also precedes command echo: wait for two quiet reads.
                 if prompt_pending:
                     return self._finish(command, chunks)
                 prompt_pending = True
-            elif is_help and not help_canceled and chunks:
-                self._conn.write_channel(CTRL_C)
-                help_canceled = True
-                prompt_pending = False
             elif time.monotonic() - last_data > timeout:
                 print(f"\n[WARN] no output for {timeout}s on '{command}'", file=self._err)
                 self._recover(command, line)

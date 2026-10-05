@@ -107,8 +107,6 @@ class SessionTests(unittest.TestCase):
             [
                 "show run?\nrun-config     running-config\n(Cisco Controller) >show run",
                 "",
-                "\n(Cisco Controller) >",
-                "",
                 "",
             ]
         )
@@ -128,7 +126,7 @@ class SessionTests(unittest.TestCase):
         )
         out = io.StringIO()
         self.assertTrue(NetmikoSession(channel, out, io.StringIO()).run("?"))
-        self.assertEqual(channel.writes, ["?"])
+        self.assertEqual(channel.writes, ["?", "\x03"])
         self.assertIn("Show running system information", out.getvalue())
 
     @patch("air_ssh.infrastructure.session.time.sleep", new=lambda _seconds: None)
@@ -553,8 +551,6 @@ class ApSessionTests(unittest.TestCase):
         channel = ApChannel(
             [
                 "show run?\nrunning-config\nap-153-4#show run",
-                "",
-                "\nap-153-4#",
                 "",
                 "",
             ]
